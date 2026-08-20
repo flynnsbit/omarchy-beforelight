@@ -2,8 +2,11 @@ CC = gcc
 CFLAGS = -Wall -Wextra -O2 `sdl2-config --cflags`
 LDFLAGS = `sdl2-config --libs` -lSDL2_image -lm
 
-.PHONY: all clean
-all: build fishsaver hardrain bouncingball globe warp toastersaver messages messages2 logo rainstorm spotlight lifeforms fadeout matrix randomizer paperfire worms starrynight
+.PHONY: all clean dist
+PREBUILT = ../prebuilt
+BINARIES = bouncingball fadeout fishsaver globe hardrain lifeforms lifeforms_new logo matrix messages messages2 paperfire rainstorm randomizer spotlight starrynight toastersaver warp worms
+
+all: build fishsaver hardrain bouncingball globe warp toastersaver messages messages2 logo rainstorm spotlight lifeforms lifeforms_new fadeout matrix randomizer paperfire worms starrynight
 
 build:
 	mkdir -p build
@@ -44,6 +47,9 @@ spotlight: main_spotlight.c | build
 lifeforms: main_lifeforms_new.c | build
 	$(CC) $(CFLAGS) -o build/lifeforms main_lifeforms_new.c $(LDFLAGS)
 
+lifeforms_new: lifeforms
+	cp -a build/lifeforms build/lifeforms_new
+
 fadeout: main_fadeout.c | build
 	$(CC) $(CFLAGS) -o build/fadeout main_fadeout.c $(LDFLAGS)
 
@@ -61,6 +67,12 @@ worms: main_worms.c | build
 
 starrynight: starrynight.c | build
 	$(CC) $(CFLAGS) -o build/starrynight starrynight.c $(LDFLAGS) -lSDL2_ttf -lGL -lGLU
+
+dist: all
+	$(MAKE) -C overlay
+	mkdir -p $(PREBUILT)
+	cp -a $(addprefix build/,$(BINARIES)) overlay/libbeforelight-overlay.so $(PREBUILT)/
+	cd $(PREBUILT) && sha256sum $(BINARIES) libbeforelight-overlay.so > SHA256SUMS
 
 clean:
 	rm -rf build

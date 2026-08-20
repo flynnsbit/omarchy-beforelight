@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Idempotent Before Light install. Safe to run from the plugin service on enable.
-# Prefers shipped prebuilt savers so `omarchy plugin add` works without gcc.
+# Builds savers from engine/ when a compiler is present. Otherwise installs
+# prebuilt/ only after SHA256SUMS verifies.
 set -euo pipefail
 
 QUIET=0
@@ -21,28 +22,45 @@ install -Dm0755 "${ROOT}/bin/omarchy-beforelight" "${BIN_DST}/omarchy-beforeligh
 install -Dm0755 "${ROOT}/bin/omarchy-beforelight-settings" "${BIN_DST}/omarchy-beforelight-settings"
 install -Dm0755 "${ROOT}/bin/omarchy-screensaver" "${BIN_DST}/omarchy-screensaver"
 
+can_build_savers() {
+  command -v gcc >/dev/null && command -v make >/dev/null && command -v sdl2-config >/dev/null
+}
+
+can_build_overlay() {
+  command -v gcc >/dev/null && command -v make >/dev/null && command -v wayland-scanner >/dev/null && command -v pkg-config >/dev/null && pkg-config --exists wayland-client sdl3
+}
+
+verify_prebuilt() {
+  local sums="${ROOT}/prebuilt/SHA256SUMS"
+  if [[ ! -f "${sums}" ]]; then
+    log "prebuilt/SHA256SUMS is missing; refusing unverified binaries"
+    return 1
+  fi
+  if ! command -v sha256sum >/dev/null; then
+    log "sha256sum is required to verify prebuilt binaries"
+    return 1
+  fi
+  if ! (cd "${ROOT}/prebuilt" && sha256sum --strict -c SHA256SUMS); then
+    log "prebuilt checksum mismatch; refusing to install"
+    return 1
+  fi
+}
+
 install_overlay() {
   local dest="${BIN_DST}/libbeforelight-overlay.so"
-  if [[ -f "${ROOT}/engine/overlay/libbeforelight-overlay.so" ]]; then
+  if can_build_overlay && [[ -d "${ROOT}/engine/overlay" ]]; then
+    log "Building overlay shim from source…"
+    make -C "${ROOT}/engine/overlay" -j"$(nproc)"
     install -Dm0755 "${ROOT}/engine/overlay/libbeforelight-overlay.so" "${dest}"
     return 0
   fi
-  if [[ -f "${ROOT}/prebuilt/libbeforelight-overlay.so" ]]; then
+  if [[ -f "${ROOT}/prebuilt/libbeforelight-overlay.so" ]] && verify_prebuilt; then
+    log "Installing verified prebuilt overlay shim…"
     install -Dm0755 "${ROOT}/prebuilt/libbeforelight-overlay.so" "${dest}"
     return 0
   fi
-  if command -v gcc >/dev/null && command -v wayland-scanner >/dev/null && command -v pkg-config >/dev/null; then
-    if pkg-config --exists wayland-client sdl3 && [[ -d "${ROOT}/engine/overlay" ]]; then
-      log "Building overlay shim…"
-      make -C "${ROOT}/engine/overlay" -j"$(nproc)"
-      install -Dm0755 "${ROOT}/engine/overlay/libbeforelight-overlay.so" "${dest}"
-      return 0
-    fi
-  fi
   log "No overlay shim; savers will use compositor fullscreen instead of layer-shell"
 }
-
-install_overlay
 
 install_savers() {
   local src="$1"
@@ -52,6 +70,8 @@ install_savers() {
     local base
     base="$(basename "$f")"
     [[ "$base" == "screensaver_config" ]] && continue
+    [[ "$base" == *.so ]] && continue
+    [[ "$base" == SHA256SUMS ]] && continue
     if command -v ldd >/dev/null; then
       if ldd "$f" 2>/dev/null | grep -q "not found"; then
         log "skip ${base}: missing shared library"
@@ -62,18 +82,17 @@ install_savers() {
   done
 }
 
-if [[ -d "${ROOT}/prebuilt" ]] && compgen -G "${ROOT}/prebuilt/*" >/dev/null; then
-  log "Installing prebuilt savers…"
-  install_savers "${ROOT}/prebuilt"
-elif [[ -d "${ROOT}/engine/build" ]] && compgen -G "${ROOT}/engine/build/*" >/dev/null; then
-  log "Installing built savers…"
-  install_savers "${ROOT}/engine/build"
-elif command -v gcc >/dev/null && command -v sdl2-config >/dev/null; then
-  log "Building savers…"
+install_overlay
+
+if can_build_savers && [[ -d "${ROOT}/engine" ]]; then
+  log "Building savers from reviewed source…"
   make -C "${ROOT}/engine" -j"$(nproc)" all
   install_savers "${ROOT}/engine/build"
+elif [[ -d "${ROOT}/prebuilt" ]] && verify_prebuilt; then
+  log "Installing checksum-verified prebuilt savers…"
+  install_savers "${ROOT}/prebuilt"
 else
-  log "No prebuilt savers and no compiler; picker will list whatever is already in ${SAVER_DST}"
+  log "No compiler and no verified prebuilts; picker will list whatever is already in ${SAVER_DST}"
 fi
 
 if [[ ! -f "${HOME_DIR}/.config/omarchy/beforelight.json" ]]; then

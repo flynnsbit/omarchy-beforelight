@@ -32,8 +32,9 @@ Click the Before Light icon on the bar. If enable did not place it:
 omarchy bar add beforelight --section right
 ```
 
-No network after install, no sudo. Prebuilt savers ship in the plugin;
-`gcc` is not required.
+No network after install, no sudo. Setup **builds savers from `engine/`** when
+`gcc` and `sdl2-config` are present (normal Omarchy). If they are not, it
+installs `prebuilt/` only after `sha256sum -c prebuilt/SHA256SUMS`.
 
 ## What it does
 
@@ -73,6 +74,18 @@ No network after install, no sudo. Prebuilt savers ship in the plugin;
 **Covering the desktop.** The saver is a wlr-layer-shell Overlay. The Omarchy bar is not hidden or restored.
 
 **Settings.** Stored in `~/.config/omarchy/beforelight.json`. Changes apply on the next preview or idle.
+
+## Build / provenance
+
+Savers are C + SDL2 in `engine/`. To rebuild the shipped artifacts from this tree:
+
+```bash
+make -C engine dist
+```
+
+That compiles every saver, builds the overlay shim, copies them into `prebuilt/`,
+and rewrites `prebuilt/SHA256SUMS`. Setup will not install a prebuilt binary
+whose hash does not match that file.
 
 ## Remove
 

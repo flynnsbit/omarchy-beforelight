@@ -7,6 +7,7 @@
 #include <sys/wait.h>
 #include <signal.h>
 #include <string.h>
+#include <stdio.h>
 #include <dirent.h>
 
 extern char *optarg;
@@ -112,8 +113,8 @@ int main(int argc, char *argv[]) {
 
             if (screenaver_count >= 32) break;
 
-            strcpy(screensavers[screenaver_count].name, name);
-            sprintf(screensavers[screenaver_count].path, "%s%s", build_path, name);
+            snprintf(screensavers[screenaver_count].name, sizeof(screensavers[screenaver_count].name), "%s", name);
+            snprintf(screensavers[screenaver_count].path, sizeof(screensavers[screenaver_count].path), "%s%s", build_path, name);
 
             // Mark which ones require SDL_ttf
             screensavers[screenaver_count].requires_ttf = 0;
@@ -244,7 +245,7 @@ int main(int argc, char *argv[]) {
             if (pid == 0) {
                 // Child process: execute screensaver
                 char fullscreen_arg[16];  // Larger buffer for safety
-                sprintf(fullscreen_arg, "-f%d", do_fullscreen);
+                snprintf(fullscreen_arg, sizeof(fullscreen_arg), "-f%d", do_fullscreen);
                 execl(screensavers[current_index].path, screensavers[current_index].name, fullscreen_arg, NULL);
 
                 // If execl fails, exit child
@@ -267,7 +268,7 @@ int main(int argc, char *argv[]) {
                 if (font) {
                     SDL_Color white = {255, 255, 255, 255};
                     char display_text[128];
-                    sprintf(display_text, "Now Playing: %s", screensavers[current_index].name);
+                    snprintf(display_text, sizeof(display_text), "Now Playing: %s", screensavers[current_index].name);
 
                     SDL_Surface *text_surf = TTF_RenderText_Blended(font, display_text, white);
                     if (text_surf) {

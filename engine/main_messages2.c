@@ -39,7 +39,7 @@ int main(int argc, char *argv[]) {
                 do_fullscreen = atoi(optarg);
                 break;
             case 't':
-                strcpy(message_text, optarg);
+                snprintf(message_text, sizeof(message_text), "%s", optarg);
                 break;
             case 'r':
                 random_mode = 1;

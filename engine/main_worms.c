@@ -146,13 +146,7 @@ int main(int argc, char *argv[]) {
             SDL_Quit();
             return 1;
         }
-        // Assume chomp.h with unsigned char chomp_sound[], int chomp_sound_length
-        #include "assets/chomp.h"
-        SDL_RWops *rw = SDL_RWFromConstMem(chomp_sound, chomp_sound_length);
-        chomp = Mix_LoadWAV_RW(rw, 1);
-        if (!chomp) {
-            SDL_Log("Cannot load chomp sound: %s", Mix_GetError());
-        }
+        chomp = NULL;
     }
 
     // Screenshot capture (from main_spotlight.c)
