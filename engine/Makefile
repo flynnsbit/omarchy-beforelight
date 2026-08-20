@@ -1,78 +1,78 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -O2 `sdl2-config --cflags`
 LDFLAGS = `sdl2-config --libs` -lSDL2_image -lm
-
-.PHONY: all clean dist
+BUILD ?= build
 PREBUILT = ../prebuilt
 BINARIES = bouncingball fadeout fishsaver globe hardrain lifeforms lifeforms_new logo matrix messages messages2 paperfire rainstorm randomizer spotlight starrynight toastersaver warp worms
 
-all: build fishsaver hardrain bouncingball globe warp toastersaver messages messages2 logo rainstorm spotlight lifeforms lifeforms_new fadeout matrix randomizer paperfire worms starrynight
+.PHONY: all clean dist
+all: $(BUILD) fishsaver hardrain bouncingball globe warp toastersaver messages messages2 logo rainstorm spotlight lifeforms lifeforms_new fadeout matrix randomizer paperfire worms starrynight
 
-build:
-	mkdir -p build
+$(BUILD):
+	mkdir -p $(BUILD)
 
-fishsaver: main_fish.c | build
-	$(CC) $(CFLAGS) -o build/fishsaver main_fish.c $(LDFLAGS)
+fishsaver: main_fish.c | $(BUILD)
+	$(CC) $(CFLAGS) -o $(BUILD)/fishsaver main_fish.c $(LDFLAGS)
 
-hardrain: main_hard_rain.c | build
-	$(CC) $(CFLAGS) -o build/hardrain main_hard_rain.c $(LDFLAGS)
+hardrain: main_hard_rain.c | $(BUILD)
+	$(CC) $(CFLAGS) -o $(BUILD)/hardrain main_hard_rain.c $(LDFLAGS)
 
-bouncingball: main_bouncing_ball.c | build
-	$(CC) $(CFLAGS) -o build/bouncingball main_bouncing_ball.c $(LDFLAGS)
+bouncingball: main_bouncing_ball.c | $(BUILD)
+	$(CC) $(CFLAGS) -o $(BUILD)/bouncingball main_bouncing_ball.c $(LDFLAGS)
 
-globe: main_globe.c | build
-	$(CC) $(CFLAGS) -o build/globe main_globe.c $(LDFLAGS)
+globe: main_globe.c | $(BUILD)
+	$(CC) $(CFLAGS) -o $(BUILD)/globe main_globe.c $(LDFLAGS)
 
-warp: main_warp.c | build
-	$(CC) $(CFLAGS) -o build/warp main_warp.c $(LDFLAGS)
+warp: main_warp.c | $(BUILD)
+	$(CC) $(CFLAGS) -o $(BUILD)/warp main_warp.c $(LDFLAGS)
 
-toastersaver: main_toaster.c | build
-	$(CC) $(CFLAGS) -o build/toastersaver main_toaster.c $(LDFLAGS)
+toastersaver: main_toaster.c | $(BUILD)
+	$(CC) $(CFLAGS) -o $(BUILD)/toastersaver main_toaster.c $(LDFLAGS)
 
-messages: main_messages.c | build
-	$(CC) $(CFLAGS) -o build/messages main_messages.c $(LDFLAGS) -lSDL2_ttf
+messages: main_messages.c | $(BUILD)
+	$(CC) $(CFLAGS) -o $(BUILD)/messages main_messages.c $(LDFLAGS) -lSDL2_ttf
 
-messages2: main_messages2.c | build
-	$(CC) $(CFLAGS) -o build/messages2 main_messages2.c $(LDFLAGS) -lSDL2_ttf
+messages2: main_messages2.c | $(BUILD)
+	$(CC) $(CFLAGS) -o $(BUILD)/messages2 main_messages2.c $(LDFLAGS) -lSDL2_ttf
 
-logo: main_logo.c | build
-	$(CC) $(CFLAGS) -o build/logo main_logo.c $(LDFLAGS)
+logo: main_logo.c | $(BUILD)
+	$(CC) $(CFLAGS) -o $(BUILD)/logo main_logo.c $(LDFLAGS)
 
-rainstorm: main_rainstorm.c | build
-	$(CC) $(CFLAGS) -o build/rainstorm main_rainstorm.c $(LDFLAGS)
+rainstorm: main_rainstorm.c | $(BUILD)
+	$(CC) $(CFLAGS) -o $(BUILD)/rainstorm main_rainstorm.c $(LDFLAGS)
 
-spotlight: main_spotlight.c | build
-	$(CC) $(CFLAGS) -o build/spotlight main_spotlight.c $(LDFLAGS)
+spotlight: main_spotlight.c | $(BUILD)
+	$(CC) $(CFLAGS) -o $(BUILD)/spotlight main_spotlight.c $(LDFLAGS)
 
-lifeforms: main_lifeforms_new.c | build
-	$(CC) $(CFLAGS) -o build/lifeforms main_lifeforms_new.c $(LDFLAGS)
+lifeforms: main_lifeforms_new.c | $(BUILD)
+	$(CC) $(CFLAGS) -o $(BUILD)/lifeforms main_lifeforms_new.c $(LDFLAGS)
 
 lifeforms_new: lifeforms
-	cp -a build/lifeforms build/lifeforms_new
+	cp -a $(BUILD)/lifeforms $(BUILD)/lifeforms_new
 
-fadeout: main_fadeout.c | build
-	$(CC) $(CFLAGS) -o build/fadeout main_fadeout.c $(LDFLAGS)
+fadeout: main_fadeout.c | $(BUILD)
+	$(CC) $(CFLAGS) -o $(BUILD)/fadeout main_fadeout.c $(LDFLAGS)
 
-matrix: main_matrix.c | build
-	$(CC) $(CFLAGS) -o build/matrix main_matrix.c $(LDFLAGS) -lSDL2_ttf
+matrix: main_matrix.c | $(BUILD)
+	$(CC) $(CFLAGS) -o $(BUILD)/matrix main_matrix.c $(LDFLAGS) -lSDL2_ttf
 
-randomizer: main_randomizer.c | build
-	$(CC) $(CFLAGS) -o build/randomizer main_randomizer.c $(LDFLAGS) -lSDL2_ttf
+randomizer: main_randomizer.c | $(BUILD)
+	$(CC) $(CFLAGS) -o $(BUILD)/randomizer main_randomizer.c $(LDFLAGS) -lSDL2_ttf
 
-paperfire: main_paperfire.c | build
-	$(CC) $(CFLAGS) -o build/paperfire main_paperfire.c $(LDFLAGS)
+paperfire: main_paperfire.c | $(BUILD)
+	$(CC) $(CFLAGS) -o $(BUILD)/paperfire main_paperfire.c $(LDFLAGS)
 
-worms: main_worms.c | build
-	$(CC) $(CFLAGS) -o build/worms main_worms.c $(LDFLAGS) -lSDL2_ttf -lSDL2_mixer
+worms: main_worms.c | $(BUILD)
+	$(CC) $(CFLAGS) -o $(BUILD)/worms main_worms.c $(LDFLAGS) -lSDL2_ttf -lSDL2_mixer
 
-starrynight: starrynight.c | build
-	$(CC) $(CFLAGS) -o build/starrynight starrynight.c $(LDFLAGS) -lSDL2_ttf -lGL -lGLU
+starrynight: starrynight.c | $(BUILD)
+	$(CC) $(CFLAGS) -o $(BUILD)/starrynight starrynight.c $(LDFLAGS) -lSDL2_ttf -lGL -lGLU
 
 dist: all
 	$(MAKE) -C overlay
 	mkdir -p $(PREBUILT)
-	cp -a $(addprefix build/,$(BINARIES)) overlay/libbeforelight-overlay.so $(PREBUILT)/
+	cp -a $(addprefix $(BUILD)/,$(BINARIES)) overlay/libbeforelight-overlay.so $(PREBUILT)/
 	cd $(PREBUILT) && sha256sum $(BINARIES) libbeforelight-overlay.so > SHA256SUMS
 
 clean:
-	rm -rf build
+	rm -rf $(BUILD)

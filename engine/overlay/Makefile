@@ -1,35 +1,41 @@
 CC = gcc
 PROTO = wlr-layer-shell-unstable-v1
-CFLAGS = -fPIC -O2 -Wall -Wextra -I. $(shell pkg-config --cflags wayland-client sdl3)
+OUTDIR ?= .
+CFLAGS = -fPIC -O2 -Wall -Wextra -I. -I$(OUTDIR) $(shell pkg-config --cflags wayland-client sdl3)
 LIBS = $(shell pkg-config --libs wayland-client sdl3) -ldl
 
 .PHONY: all clean
-all: libbeforelight-overlay.so
+all: $(OUTDIR)/libbeforelight-overlay.so
 
-$(PROTO)-client-protocol.h: $(PROTO).xml
+$(OUTDIR):
+	mkdir -p $(OUTDIR)
+
+$(OUTDIR)/$(PROTO)-client-protocol.h: $(PROTO).xml | $(OUTDIR)
 	wayland-scanner client-header $< $@
 
-$(PROTO)-protocol.c: $(PROTO).xml
+$(OUTDIR)/$(PROTO)-protocol.c: $(PROTO).xml | $(OUTDIR)
 	wayland-scanner private-code $< $@
 
-xdg-shell-client-protocol.h: xdg-shell.xml
+$(OUTDIR)/xdg-shell-client-protocol.h: xdg-shell.xml | $(OUTDIR)
 	wayland-scanner client-header $< $@
 
-xdg-shell-protocol.c: xdg-shell.xml
+$(OUTDIR)/xdg-shell-protocol.c: xdg-shell.xml | $(OUTDIR)
 	wayland-scanner private-code $< $@
 
-overlay.o: overlay.c $(PROTO)-client-protocol.h
+$(OUTDIR)/overlay.o: overlay.c $(OUTDIR)/$(PROTO)-client-protocol.h | $(OUTDIR)
 	$(CC) $(CFLAGS) -c overlay.c -o $@
 
-$(PROTO)-protocol.o: $(PROTO)-protocol.c $(PROTO)-client-protocol.h xdg-shell-client-protocol.h
-	$(CC) $(CFLAGS) -c $(PROTO)-protocol.c -o $@
+$(OUTDIR)/$(PROTO)-protocol.o: $(OUTDIR)/$(PROTO)-protocol.c $(OUTDIR)/$(PROTO)-client-protocol.h $(OUTDIR)/xdg-shell-client-protocol.h
+	$(CC) $(CFLAGS) -c $(OUTDIR)/$(PROTO)-protocol.c -o $@
 
-xdg-shell-protocol.o: xdg-shell-protocol.c xdg-shell-client-protocol.h
-	$(CC) $(CFLAGS) -c xdg-shell-protocol.c -o $@
+$(OUTDIR)/xdg-shell-protocol.o: $(OUTDIR)/xdg-shell-protocol.c $(OUTDIR)/xdg-shell-client-protocol.h
+	$(CC) $(CFLAGS) -c $(OUTDIR)/xdg-shell-protocol.c -o $@
 
-libbeforelight-overlay.so: overlay.o $(PROTO)-protocol.o xdg-shell-protocol.o
-	$(CC) -shared -o $@ overlay.o $(PROTO)-protocol.o xdg-shell-protocol.o $(LIBS)
+$(OUTDIR)/libbeforelight-overlay.so: $(OUTDIR)/overlay.o $(OUTDIR)/$(PROTO)-protocol.o $(OUTDIR)/xdg-shell-protocol.o
+	$(CC) -shared -o $@ $^ $(LIBS)
 
 clean:
-	rm -f *.o *.so $(PROTO)-client-protocol.h $(PROTO)-protocol.c \
-		xdg-shell-client-protocol.h xdg-shell-protocol.c
+	rm -f $(OUTDIR)/overlay.o $(OUTDIR)/*.so \
+		$(OUTDIR)/$(PROTO)-client-protocol.h $(OUTDIR)/$(PROTO)-protocol.c \
+		$(OUTDIR)/xdg-shell-client-protocol.h $(OUTDIR)/xdg-shell-protocol.c \
+		$(OUTDIR)/$(PROTO)-protocol.o $(OUTDIR)/xdg-shell-protocol.o

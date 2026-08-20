@@ -22,6 +22,17 @@ install -Dm0755 "${ROOT}/bin/omarchy-beforelight" "${BIN_DST}/omarchy-beforeligh
 install -Dm0755 "${ROOT}/bin/omarchy-beforelight-settings" "${BIN_DST}/omarchy-beforelight-settings"
 install -Dm0755 "${ROOT}/bin/omarchy-screensaver" "${BIN_DST}/omarchy-screensaver"
 
+CACHE="${XDG_CACHE_HOME:-${HOME_DIR}/.cache}/beforelight"
+mkdir -p "${CACHE}"
+VERSION="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("version",""))' "${ROOT}/manifest.json" 2>/dev/null || true)"
+STAMP="${HOME_DIR}/.config/omarchy/beforelight.setup"
+SKIP_BUILD=0
+if [[ -n "${VERSION}" && -f "${STAMP}" && "$(cat "${STAMP}" 2>/dev/null)" == "${VERSION}" \
+      && -x "${SAVER_DST}/toastersaver" && -f "${BIN_DST}/libbeforelight-overlay.so" ]]; then
+  SKIP_BUILD=1
+  log "Setup already complete for ${VERSION}; skipping compile"
+fi
+
 can_build_savers() {
   command -v gcc >/dev/null && command -v make >/dev/null && command -v sdl2-config >/dev/null
 }
@@ -50,8 +61,9 @@ install_overlay() {
   local dest="${BIN_DST}/libbeforelight-overlay.so"
   if can_build_overlay && [[ -d "${ROOT}/engine/overlay" ]]; then
     log "Building overlay shim from source…"
-    make -C "${ROOT}/engine/overlay" -j"$(nproc)"
-    install -Dm0755 "${ROOT}/engine/overlay/libbeforelight-overlay.so" "${dest}"
+    mkdir -p "${CACHE}/overlay"
+    make -C "${ROOT}/engine/overlay" -j"$(nproc)" OUTDIR="${CACHE}/overlay"
+    install -Dm0755 "${CACHE}/overlay/libbeforelight-overlay.so" "${dest}"
     return 0
   fi
   if [[ -f "${ROOT}/prebuilt/libbeforelight-overlay.so" ]] && verify_prebuilt; then
@@ -82,17 +94,21 @@ install_savers() {
   done
 }
 
-install_overlay
-
-if can_build_savers && [[ -d "${ROOT}/engine" ]]; then
-  log "Building savers from reviewed source…"
-  make -C "${ROOT}/engine" -j"$(nproc)" all
-  install_savers "${ROOT}/engine/build"
-elif [[ -d "${ROOT}/prebuilt" ]] && verify_prebuilt; then
-  log "Installing checksum-verified prebuilt savers…"
-  install_savers "${ROOT}/prebuilt"
-else
-  log "No compiler and no verified prebuilts; picker will list whatever is already in ${SAVER_DST}"
+if [[ "${SKIP_BUILD}" -eq 0 ]]; then
+  install_overlay
+  if can_build_savers && [[ -d "${ROOT}/engine" ]]; then
+    log "Building savers from reviewed source…"
+    make -C "${ROOT}/engine" -j"$(nproc)" BUILD="${CACHE}/engine" all
+    install_savers "${CACHE}/engine"
+  elif [[ -d "${ROOT}/prebuilt" ]] && verify_prebuilt; then
+    log "Installing checksum-verified prebuilt savers…"
+    install_savers "${ROOT}/prebuilt"
+  else
+    log "No compiler and no verified prebuilts; picker will list whatever is already in ${SAVER_DST}"
+  fi
+  if [[ -n "${VERSION}" ]]; then
+    printf '%s\n' "${VERSION}" > "${STAMP}"
+  fi
 fi
 
 if [[ ! -f "${HOME_DIR}/.config/omarchy/beforelight.json" ]]; then
