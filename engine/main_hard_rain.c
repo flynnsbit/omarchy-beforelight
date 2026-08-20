@@ -35,8 +35,7 @@ void drawCircleOutline(SDL_Renderer *renderer, int centerX, int centerY, int rad
 static void usage(const char *prog) {
     fprintf(stderr, "Usage: %s [options]\n", prog);
     fprintf(stderr, "Options:\n");
-    fprintf(stderr, "  -t N    Number of toasters (default: all)\n");
-    fprintf(stderr, "  -m N    Number of toast pieces (default: all)\n");
+    fprintf(stderr, "  -t N    Number of drops (default: 120)\n");
     fprintf(stderr, "  -s F    Speed multiplier (default: 1.0)\n");
     fprintf(stderr, "  -f 0|1  Fullscreen (1=yes, 0=windowed) (default: 1)\n");
     fprintf(stderr, "  -h      Show this help\n");
@@ -56,9 +55,15 @@ int main(int argc, char *argv[]) {
     int opt;
     float speed_mult = 1.0f;
     int do_fullscreen = 1;
+    int num_drops = 120;
 
-    while ((opt = getopt(argc, argv, "s:f:h")) != -1) {
+    while ((opt = getopt(argc, argv, "t:s:f:h")) != -1) {
         switch (opt) {
+            case 't':
+                num_drops = atoi(optarg);
+                if (num_drops < 1) num_drops = 1;
+                if (num_drops > 400) num_drops = 400;
+                break;
             case 's':
                 speed_mult = atof(optarg);
                 if (speed_mult <= 0.1f) speed_mult = 0.1f;
@@ -114,23 +119,16 @@ int main(int argc, char *argv[]) {
     int W, H;
     SDL_GetRendererOutputSize(renderer, &W, &H);
 
-    struct Pos poses[10];
-    Entity entities[10];
+    struct Pos *poses = malloc((size_t)num_drops * sizeof(struct Pos));
+    Entity *entities = malloc((size_t)num_drops * sizeof(Entity));
+    if (!poses || !entities) {
+        SDL_Log("Out of memory");
+        return 1;
+    }
 
-    SDL_Color rain_colors[8] = {
-        {0x00, 0x00, 0x6e, 255}, // dkblue
-        {0xc8, 0xd3, 0x54, 255}, // lime
-        {0xc2, 0xc2, 0xc2, 255}, // ltgray
-        {0x86, 0x1f, 0x23, 255}, // red
-        {0x45, 0xa0, 0xcc, 255}, // ltblue
-        {0x9a, 0x33, 0x68, 255}, // pink
-        {0xef, 0xda, 0x1d, 255}, // yellow
-        {0x39, 0x71, 0x32, 255}  // green
-    };
-
-    for(int i=0; i<10; i++) {
+    for (int i = 0; i < num_drops; i++) {
         poses[i] = (struct Pos){rand() % 100, rand() % 100};
-        entities[i] = (Entity){i * 0.5f, i, rand() % 8}; // Staggered start times
+        entities[i] = (Entity){i * (0.5f / (num_drops / 10.0f + 0.1f)), i, rand() % 8};
     }
 
     // Main loop
@@ -158,7 +156,7 @@ int main(int argc, char *argv[]) {
         SDL_RenderClear(renderer);
 
         // Render rain drops as growing outline circles
-        for (size_t i = 0; i < 10; i++) {
+        for (int i = 0; i < num_drops; i++) {
             const Entity ent = entities[i];
             const struct Pos pos = poses[ent.pos_index];
 
@@ -188,10 +186,8 @@ int main(int argc, char *argv[]) {
         SDL_Delay(16); // ~60fps
     }
 
-    // Cleanup - restore cursor visibility
-    system("hyprctl eval 'hl.config({ cursor = { invisible = false } })' >/dev/null 2>&1 || hyprctl keyword cursor:invisible false >/dev/null 2>&1");
-
-    // Cleanup
+    free(poses);
+    free(entities);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     IMG_Quit();
