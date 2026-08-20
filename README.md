@@ -1,42 +1,91 @@
+<div align="center">
+
+<img src="icon.png" alt="" width="120">
+
 # Before Light
 
-Classic-style screensavers for [Omarchy](https://omarchy.org) 4: bar picker, fullscreen preview, per-saver settings, idle hook.
+**Classic-style screensavers for Omarchy 4.**
 
-Original engine and pixel art. Not affiliated with Berkeley Systems, Infinisys, or After Dark.
+A bar picker, fullscreen preview, per-saver settings, and an idle hook.
+Original engine and pixel art. Not affiliated with Berkeley Systems,
+Infinisys, or After Dark.
 
-Listed for [Omarchy Plugins](https://omarchyplugins.com/).
+<img src="https://img.shields.io/badge/Omarchy-4.x-a855f7?style=flat-square" alt="Omarchy 4.x">
+<img src="https://img.shields.io/badge/Hyprland-%E2%89%A5%200.56-22d3ee?style=flat-square" alt="Hyprland 0.56+">
+<img src="https://img.shields.io/badge/license-MIT-64748b?style=flat-square" alt="MIT">
+
+<br><br>
+
+<img src="preview.png" alt="Origami paper toasters flying across a dusk sky" width="820">
+
+</div>
 
 ## Install
 
-```sh
-omarchy plugin add https://github.com/flynnsbit/omarchy-beforelight.git --enable
+```bash
+omarchy plugin add https://github.com/flynnsbit/omarchy-beforelight.git --enable --yes
 ```
 
-That is the whole install. A plugin service copies the savers and idle wrapper on first load. Add the widget if enable did not place it:
+Click the Before Light icon on the bar. If enable did not place it:
 
-```sh
+```bash
 omarchy bar add beforelight --section right
 ```
 
-Then click the Before Light icon.
+No network after install, no sudo. Prebuilt savers ship in the plugin;
+`gcc` is not required.
 
-## Usage
+## What it does
 
-- Click the bar icon to pick a screensaver.
-- On the **ON** row: play previews fullscreen, stop ends preview, cog opens settings (hidden when that saver has none).
-- Idle uses the ON saver. The SDL window is a topmost overlay, so the Omarchy bar stays running underneath and does not have to hide or come back.
+| | |
+|---|---|
+| **Picker** | Click the bar icon. The ON row is the idle screensaver. |
+| **Preview** | Play on the selected row. Move the mouse to dismiss. |
+| **Settings** | Cog on savers that have knobs. Hidden when they don't. |
+| **Idle** | Uses the ON saver. The SDL window is a topmost overlay, so the Omarchy bar stays running underneath. |
+| **Stock TTE** | You can still pick Omarchy's packaged terminal screensaver. |
+
+## Savers
+
+| | |
+|---|---|
+| **Paper Toasters** | Origami-winged toasters on the breeze |
+| **Aquarium** | Pixel fish in a home tank |
+| **Globe** | Earth spinning in space |
+| **Spotlight** | City night with a moving beam |
+| **Starry Night** | Starfield over a city silhouette |
+| **Code Rain** | Falling green code |
+| **Warp, Worms, Bounce, Fade, Hard Rain, Rainstorm, Paper Fire, Life Forms, Logo, Messages, Randomizer** | Also in the list |
+
+## Keys in the picker
+
+| | |
+|---|---|
+| `↑` `↓` | move between savers |
+| `Enter` | turn the focused saver ON |
+| `P` | preview the ON saver |
+| `Esc` | close |
+
+## How it works
+
+**Idle.** A drop-in `omarchy-screensaver` wrapper sits on `PATH` ahead of the packaged TTE binary, so Omarchy's existing idle timer launches Before Light when it is selected.
+
+**Covering the desktop.** The saver is a wlr-layer-shell Overlay. The Omarchy bar is not hidden or restored.
+
+**Settings.** Stored in `~/.config/omarchy/beforelight.json`. Changes apply on the next preview or idle.
 
 ## Remove
 
-```sh
-omarchy plugin remove beforelight
+```bash
+omarchy plugin remove beforelight --yes
 rm -f ~/.config/omarchy/bin/omarchy-beforelight \
       ~/.config/omarchy/bin/omarchy-beforelight-settings \
       ~/.config/omarchy/bin/omarchy-screensaver \
+      ~/.config/omarchy/bin/libbeforelight-overlay.so \
       ~/.config/environment.d/90-beforelight.conf
 ```
 
-Optional: remove the Before Light block from `~/.config/hypr/hyprland.lua` and `~/.config/omarchy/branding/screensaver`.
+Optional: remove the Before Light block from `~/.config/hypr/hyprland.lua` and the binaries under `~/.config/omarchy/branding/screensaver`.
 
 ## License
 
