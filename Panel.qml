@@ -99,6 +99,10 @@ Panel {
     selectedId = parsed.selected
     engine = parsed.engine
     cursorIndex = Model.indexOf(items, selectedId)
+    Qt.callLater(function() {
+      if (saverList.visible)
+        saverList.positionViewAtIndex(root.cursorIndex, ListView.Contain)
+    })
   }
 
   function moveCursor(delta) {
@@ -402,18 +406,26 @@ Panel {
           onCloseRequested: root.closeSettings()
         }
 
-        ListView {
-          id: saverList
+        Item {
+          id: listWrap
           visible: !root.settingsOpen
           width: parent.width
-          height: Math.min(Style.space(320), Math.max(Style.space(120), count * Style.space(36)))
-          clip: true
-          model: root.items
-          currentIndex: root.cursorIndex
-          boundsBehavior: Flickable.StopAtBounds
-          ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+          height: Math.min(Style.space(320), Math.max(Style.space(120), saverList.count * Style.space(36)))
+          readonly property bool overflow: saverList.count * Style.space(36) > height + 1
+          readonly property real travel: Math.max(1, saverList.contentHeight - saverList.height)
+          clip: false
 
-          delegate: Item {
+          ListView {
+            id: saverList
+            anchors.fill: parent
+            anchors.rightMargin: listWrap.overflow ? Style.space(12) : 0
+            clip: true
+            model: root.items
+            currentIndex: root.cursorIndex
+            boundsBehavior: Flickable.StopAtBounds
+            flickableDirection: Flickable.VerticalFlick
+
+            delegate: Item {
             required property var modelData
             required property int index
             width: saverList.width
@@ -499,6 +511,56 @@ Panel {
               }
               onClicked: root.selectSaver(modelData.id)
               onDoubleClicked: root.selectSaver(modelData.id, true)
+            }
+          }
+          }
+
+          Item {
+            id: scrollTrack
+            visible: listWrap.overflow
+            z: 10
+            width: Style.space(8)
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.bottom: parent.bottom
+
+            Rectangle {
+              anchors.fill: parent
+              radius: width / 2
+              color: Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.12)
+            }
+
+            Rectangle {
+              id: scrollThumb
+              width: Style.space(4)
+              radius: width / 2
+              anchors.horizontalCenter: parent.horizontalCenter
+              height: Math.max(
+                Style.space(18),
+                Math.round(scrollTrack.height * saverList.height / Math.max(1, saverList.contentHeight))
+              )
+              y: {
+                var maxY = Math.max(0, scrollTrack.height - height)
+                return Math.round(maxY * saverList.contentY / listWrap.travel)
+              }
+              color: Qt.rgba(
+                root.foreground.r, root.foreground.g, root.foreground.b,
+                scrollDrag.pressed ? 0.7 : (scrollDrag.containsMouse ? 0.55 : 0.42)
+              )
+            }
+
+            MouseArea {
+              id: scrollDrag
+              anchors.fill: parent
+              hoverEnabled: true
+              preventStealing: true
+              cursorShape: Qt.PointingHandCursor
+              function seek(py) {
+                var t = Math.max(0, Math.min(1, py / Math.max(1, height)))
+                saverList.contentY = t * listWrap.travel
+              }
+              onPressed: function(mouse) { seek(mouse.y) }
+              onPositionChanged: function(mouse) { if (pressed) seek(mouse.y) }
             }
           }
         }
