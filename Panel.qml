@@ -8,7 +8,7 @@ import "Model.js" as Model
 
 Panel {
   id: root
-  moduleName: "io.github.flynnsbit.beforelight"
+  moduleName: "beforelight"
   manageIpc: false
 
   property var anchorItem: null
@@ -18,6 +18,12 @@ Panel {
   readonly property color foreground: bar ? bar.foreground : Color.foreground
   readonly property color dim: Qt.darker(foreground, 1.45)
   readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
+  readonly property string pluginDir: {
+    var url = Qt.resolvedUrl(".").toString()
+    if (url.indexOf("file://") === 0) url = url.substring(7)
+    return url.replace(/\/+$/, "")
+  }
+  readonly property string cli: pluginDir + "/bin/omarchy-beforelight"
 
   property var items: []
   property string selectedId: ""
@@ -112,7 +118,7 @@ Panel {
   function selectSaver(id, thenPreview) {
     if (!id || setProcess.running) return
     previewAfterSelect = thenPreview === true
-    setProcess.command = [Quickshell.env("HOME") + "/.config/omarchy/bin/omarchy-beforelight", "set", id]
+    setProcess.command = [root.cli, "set", id]
     setProcess.running = true
   }
 
@@ -121,7 +127,7 @@ Panel {
     if (previewProcess.running) stopProcess.running = true
     previewingId = selectedId
     root.close()
-    previewProcess.command = [Quickshell.env("HOME") + "/.config/omarchy/bin/omarchy-beforelight", "preview"]
+    previewProcess.command = [root.cli, "preview"]
     previewProcess.running = true
   }
 
@@ -147,9 +153,9 @@ Panel {
     if (!selectedId || selectedId === "omarchy") {
       settingsFields = []
       settingsValues = ({})
-      schemaProcess.command = [Quickshell.env("HOME") + "/.config/omarchy/bin/omarchy-beforelight", "schema"]
+      schemaProcess.command = [root.cli, "schema"]
     } else {
-      schemaProcess.command = [Quickshell.env("HOME") + "/.config/omarchy/bin/omarchy-beforelight", "schema", selectedId]
+      schemaProcess.command = [root.cli, "schema", selectedId]
     }
     schemaProcess.running = true
   }
@@ -168,7 +174,7 @@ Panel {
   function setSetting(saverId, key, value) {
     if (!saverId || !key) return
     setSettingProcess.command = [
-      Quickshell.env("HOME") + "/.config/omarchy/bin/omarchy-beforelight",
+      root.cli,
       "set-setting", saverId, String(key), String(value)
     ]
     setSettingProcess.running = true
@@ -176,7 +182,7 @@ Panel {
 
   function setPreviewSeconds(seconds) {
     setSettingProcess.command = [
-      Quickshell.env("HOME") + "/.config/omarchy/bin/omarchy-beforelight",
+      root.cli,
       "set-setting", "_global", "previewSeconds", String(seconds)
     ]
     setSettingProcess.running = true
@@ -185,7 +191,7 @@ Panel {
   Process {
     id: listProcess
     running: false
-    command: [Quickshell.env("HOME") + "/.config/omarchy/bin/omarchy-beforelight", "list"]
+    command: [root.cli, "list"]
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: root.applyList(text)
@@ -221,7 +227,7 @@ Panel {
   Process {
     id: stopProcess
     running: false
-    command: [Quickshell.env("HOME") + "/.config/omarchy/bin/omarchy-beforelight", "stop"]
+    command: [root.cli, "stop"]
   }
 
   Process {

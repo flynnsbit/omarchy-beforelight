@@ -4,7 +4,7 @@ import qs.Ui
 
 BarWidget {
   id: root
-  moduleName: "io.github.flynnsbit.beforelight"
+  moduleName: "beforelight"
 
   readonly property var panelItem: panelLoader.item
   readonly property bool opened: panelItem ? panelItem.opened === true : false

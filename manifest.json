@@ -1,17 +1,20 @@
 {
   "schemaVersion": 1,
-  "id": "io.github.flynnsbit.beforelight",
+  "id": "beforelight",
   "name": "Before Light",
   "version": "1.0.0",
-  "author": "flynnsbit",
+  "author": "Before Light",
   "license": "MIT",
   "description": "Classic-style Omarchy screensavers with a bar picker, preview, and per-saver settings.",
   "homepage": "https://github.com/flynnsbit/omarchy-beforelight",
   "kinds": [
-    "bar-widget"
+    "bar-widget",
+    "service"
   ],
+  "keepLoaded": true,
   "entryPoints": {
-    "barWidget": "BarWidget.qml"
+    "barWidget": "BarWidget.qml",
+    "service": "Service.qml"
   },
   "barWidget": {
     "displayName": "Before Light",
