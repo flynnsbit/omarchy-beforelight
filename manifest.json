@@ -6,7 +6,7 @@
   "author": "flynnsbit",
   "license": "MIT",
   "description": "Classic-style Omarchy screensavers with a bar picker, preview, and per-saver settings.",
-  "homepage": "https://github.com/flynnsbit/beforelight",
+  "homepage": "https://github.com/flynnsbit/omarchy-beforelight",
   "kinds": [
     "bar-widget"
   ],

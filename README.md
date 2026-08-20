@@ -12,7 +12,7 @@ Omarchy clones the plugin into `~/.config/omarchy/plugins/` but does **not** run
 
 ```sh
 # 1. Add the bar plugin
-omarchy plugin add https://github.com/flynnsbit/beforelight.git --enable
+omarchy plugin add https://github.com/flynnsbit/omarchy-beforelight.git --enable
 
 # 2. Build savers + idle wrapper (needs gcc, SDL2, SDL2_image, SDL2_ttf; worms also SDL2_mixer)
 ~/.config/omarchy/plugins/io.github.flynnsbit.beforelight/scripts/setup.sh
