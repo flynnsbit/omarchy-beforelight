@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Idempotent Before Light install. Safe to run from the plugin service on enable.
-# Builds savers from engine/ when a compiler is present. Otherwise installs
-# prebuilt/ only after SHA256SUMS verifies.
+# Always compiles savers from engine/ on the machine. Does not ship or install
+# prebuilt ELFs. Build outputs go to ~/.cache/beforelight, never the plugin tree.
 set -euo pipefail
 
 QUIET=0
@@ -41,22 +41,6 @@ can_build_overlay() {
   command -v gcc >/dev/null && command -v make >/dev/null && command -v wayland-scanner >/dev/null && command -v pkg-config >/dev/null && pkg-config --exists wayland-client sdl3
 }
 
-verify_prebuilt() {
-  local sums="${ROOT}/prebuilt/SHA256SUMS"
-  if [[ ! -f "${sums}" ]]; then
-    log "prebuilt/SHA256SUMS is missing; refusing unverified binaries"
-    return 1
-  fi
-  if ! command -v sha256sum >/dev/null; then
-    log "sha256sum is required to verify prebuilt binaries"
-    return 1
-  fi
-  if ! (cd "${ROOT}/prebuilt" && sha256sum --strict -c SHA256SUMS); then
-    log "prebuilt checksum mismatch; refusing to install"
-    return 1
-  fi
-}
-
 install_overlay() {
   local dest="${BIN_DST}/libbeforelight-overlay.so"
   if can_build_overlay && [[ -d "${ROOT}/engine/overlay" ]]; then
@@ -64,11 +48,6 @@ install_overlay() {
     mkdir -p "${CACHE}/overlay"
     make -C "${ROOT}/engine/overlay" -j"$(nproc)" OUTDIR="${CACHE}/overlay"
     install -Dm0755 "${CACHE}/overlay/libbeforelight-overlay.so" "${dest}"
-    return 0
-  fi
-  if [[ -f "${ROOT}/prebuilt/libbeforelight-overlay.so" ]] && verify_prebuilt; then
-    log "Installing verified prebuilt overlay shim…"
-    install -Dm0755 "${ROOT}/prebuilt/libbeforelight-overlay.so" "${dest}"
     return 0
   fi
   log "No overlay shim; savers will use compositor fullscreen instead of layer-shell"
@@ -83,7 +62,6 @@ install_savers() {
     base="$(basename "$f")"
     [[ "$base" == "screensaver_config" ]] && continue
     [[ "$base" == *.so ]] && continue
-    [[ "$base" == SHA256SUMS ]] && continue
     if command -v ldd >/dev/null; then
       if ldd "$f" 2>/dev/null | grep -q "not found"; then
         log "skip ${base}: missing shared library"
@@ -95,19 +73,16 @@ install_savers() {
 }
 
 if [[ "${SKIP_BUILD}" -eq 0 ]]; then
-  install_overlay
-  if can_build_savers && [[ -d "${ROOT}/engine" ]]; then
-    log "Building savers from reviewed source…"
+  if ! can_build_savers || [[ ! -d "${ROOT}/engine" ]]; then
+    log "Need gcc, make, and sdl2-config to compile savers from source."
+  else
+    install_overlay
+    log "Building savers from source…"
     make -C "${ROOT}/engine" -j"$(nproc)" BUILD="${CACHE}/engine" all
     install_savers "${CACHE}/engine"
-  elif [[ -d "${ROOT}/prebuilt" ]] && verify_prebuilt; then
-    log "Installing checksum-verified prebuilt savers…"
-    install_savers "${ROOT}/prebuilt"
-  else
-    log "No compiler and no verified prebuilts; picker will list whatever is already in ${SAVER_DST}"
-  fi
-  if [[ -n "${VERSION}" ]]; then
-    printf '%s\n' "${VERSION}" > "${STAMP}"
+    if [[ -n "${VERSION}" ]]; then
+      printf '%s\n' "${VERSION}" > "${STAMP}"
+    fi
   fi
 fi
 

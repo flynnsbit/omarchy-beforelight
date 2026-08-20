@@ -32,9 +32,9 @@ Click the Before Light icon on the bar. If enable did not place it:
 omarchy bar add beforelight --section right
 ```
 
-No network after install, no sudo. Setup **builds savers from `engine/`** when
-`gcc` and `sdl2-config` are present (normal Omarchy). If they are not, it
-installs `prebuilt/` only after `sha256sum -c prebuilt/SHA256SUMS`.
+No network after install, no sudo. Setup **compiles savers from `engine/`** on
+this machine (`gcc`, `make`, `sdl2-config`). Omarchy already has those. No
+prebuilt ELF binaries are shipped or installed.
 
 ## What it does
 
@@ -75,17 +75,18 @@ installs `prebuilt/` only after `sha256sum -c prebuilt/SHA256SUMS`.
 
 **Settings.** Stored in `~/.config/omarchy/beforelight.json`. Changes apply on the next preview or idle.
 
-## Build / provenance
+## Build
 
-Savers are C + SDL2 in `engine/`. To rebuild the shipped artifacts from this tree:
+Savers are C + SDL2 in `engine/`. Plugin enable runs `make` into
+`~/.cache/beforelight` and copies the results into
+`~/.config/omarchy/branding/screensaver`. To compile yourself:
 
 ```bash
-make -C engine dist
+make -C engine
 ```
 
-That compiles every saver, builds the overlay shim, copies them into `prebuilt/`,
-and rewrites `prebuilt/SHA256SUMS`. Setup will not install a prebuilt binary
-whose hash does not match that file.
+Build depends on `gcc`, `sdl2-config`, SDL2_image, SDL2_ttf, SDL2_mixer, and
+(for the overlay shim) `wayland-scanner` plus SDL3.
 
 ## Remove
 

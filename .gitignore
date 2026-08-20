@@ -1,4 +1,5 @@
 engine/build/
+prebuilt/
 engine/overlay/*.o
 engine/overlay/*.so
 engine/overlay/*-protocol.c
