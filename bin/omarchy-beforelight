@@ -17,6 +17,7 @@ catalog_json() {
 import json, os, sys
 saver_dir = sys.argv[1]
 catalog = [
+    {"id": "omarchy", "name": "Omarchy TTE", "emoji": "🅰️", "blurb": "Stock Omarchy terminal effects"},
     {"id": "toastersaver", "name": "Paper Toasters", "emoji": "🍞", "blurb": "Origami-winged toasters on the breeze"},
     {"id": "fishsaver", "name": "Aquarium", "emoji": "🐟", "blurb": "Pixel fish swimming a home tank"},
     {"id": "globe", "name": "Globe", "emoji": "🌍", "blurb": "Earth spinning in space"},
@@ -36,7 +37,6 @@ catalog = [
     {"id": "messages", "name": "Messages", "emoji": "💬", "blurb": "Scrolling text"},
     {"id": "messages2", "name": "Messages 2", "emoji": "💭", "blurb": "Alternate scrolling text"},
     {"id": "randomizer", "name": "Randomizer", "emoji": "🎲", "blurb": "Cycles every BeforeLight saver"},
-    {"id": "omarchy", "name": "Omarchy TTE", "emoji": "🅰️", "blurb": "Stock Omarchy terminal effects"},
 ]
 installed = []
 for item in catalog:
