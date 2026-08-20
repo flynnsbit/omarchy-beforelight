@@ -99,14 +99,10 @@ JSON
   chmod 600 "${HOME_DIR}/.config/omarchy/beforelight.json"
 fi
 
-# Persist PATH so idle's `omarchy-screensaver` finds the wrapper, not packaged TTE.
+# Persist PATH for new logins via environment.d, and for this Hyprland session
+# via hl.env. Do not call systemctl — idle is started by Hyprland, not systemd.
 if [[ ! -f "${ENV_D}" ]] || ! grep -q ".config/omarchy/bin" "${ENV_D}" 2>/dev/null; then
   printf 'PATH=%s/.config/omarchy/bin:${PATH}\n' "${HOME_DIR}" > "${ENV_D}"
-fi
-
-CURRENT_PATH="$(systemctl --user show-environment 2>/dev/null | sed -n 's/^PATH=//p' || true)"
-if [[ -n "${CURRENT_PATH}" && "${CURRENT_PATH}" != "${HOME_DIR}/.config/omarchy/bin:"* ]]; then
-  systemctl --user set-environment "PATH=${HOME_DIR}/.config/omarchy/bin:${CURRENT_PATH}" 2>/dev/null || true
 fi
 hyprctl eval "hl.env(\"PATH\", \"${HOME_DIR}/.config/omarchy/bin:\" .. (os.getenv(\"PATH\") or \"\"))" >/dev/null 2>&1 || true
 

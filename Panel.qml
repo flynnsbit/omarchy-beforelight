@@ -99,14 +99,21 @@ Panel {
       loadError = parsed.error
       return
     }
+    var keepY = saverList.visible && saverList.count > 0
+    var y = saverList.contentY
     items = parsed.items
     selectedId = parsed.selected
     engine = parsed.engine
     var idx = Model.indexOf(items, selectedId)
     cursorIndex = idx >= 0 ? idx : 0
     Qt.callLater(function() {
-      if (saverList.visible)
+      if (!saverList.visible) return
+      if (keepY) {
+        var maxY = Math.max(0, saverList.contentHeight - saverList.height)
+        saverList.contentY = Math.min(Math.max(0, y), maxY)
+      } else {
         saverList.positionViewAtIndex(root.cursorIndex, ListView.Contain)
+      }
     })
   }
 
@@ -127,6 +134,10 @@ Panel {
   function selectSaver(id, thenPreview) {
     if (!id || setProcess.running) return
     previewAfterSelect = thenPreview === true
+    selectedId = id
+    engine = (id === "omarchy") ? "omarchy" : "beforelight"
+    var idx = Model.indexOf(items, id)
+    if (idx >= 0) cursorIndex = idx
     setProcess.command = [root.cli, "set", id]
     setProcess.running = true
   }
@@ -215,12 +226,9 @@ Panel {
   Process {
     id: setProcess
     running: false
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: root.refresh()
-    }
-    onExited: {
-      Qt.callLater(root.refresh)
+    onExited: function(code) {
+      if (code !== 0)
+        root.refresh()
       if (root.previewAfterSelect) {
         root.previewAfterSelect = false
         Qt.callLater(root.previewOnSaver)
@@ -427,6 +435,7 @@ Panel {
             clip: true
             model: root.items
             currentIndex: root.cursorIndex
+            highlightFollowsCurrentItem: false
             boundsBehavior: Flickable.StopAtBounds
             flickableDirection: Flickable.VerticalFlick
 
