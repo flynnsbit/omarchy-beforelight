@@ -26,8 +26,8 @@ Panel {
   readonly property string cli: pluginDir + "/bin/omarchy-beforelight"
 
   property var items: []
-  property string selectedId: ""
-  property string engine: "beforelight"
+  property string selectedId: "omarchy"
+  property string engine: "omarchy"
   property string loadError: ""
   property int cursorIndex: 0
   property bool cursorActive: false
@@ -39,9 +39,12 @@ Panel {
   property int previewSeconds: 12
 
   readonly property var currentItem: {
-    for (var i = 0; i < items.length; i++)
+    var i
+    for (i = 0; i < items.length; i++)
       if (items[i].id === selectedId) return items[i]
-    return items.length ? items[0] : null
+    for (i = 0; i < items.length; i++)
+      if (items[i].selected) return items[i]
+    return null
   }
 
   readonly property var focusedItem: {
@@ -52,6 +55,7 @@ Panel {
 
   function barLabel() {
     if (currentItem && currentItem.emoji) return currentItem.emoji
+    if (engine === "omarchy" || selectedId === "omarchy") return "🅰️"
     return "🍞"
   }
 
@@ -98,7 +102,8 @@ Panel {
     items = parsed.items
     selectedId = parsed.selected
     engine = parsed.engine
-    cursorIndex = Model.indexOf(items, selectedId)
+    var idx = Model.indexOf(items, selectedId)
+    cursorIndex = idx >= 0 ? idx : 0
     Qt.callLater(function() {
       if (saverList.visible)
         saverList.positionViewAtIndex(root.cursorIndex, ListView.Contain)

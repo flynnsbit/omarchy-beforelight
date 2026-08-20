@@ -57,7 +57,7 @@ read_config() {
   python3 - "$CONFIG_PATH" <<'PY'
 import json, os, sys
 path = sys.argv[1]
-defaults = {"engine": "beforelight", "selected": "toastersaver", "args": "", "previewSeconds": 12}
+defaults = {"engine": "omarchy", "selected": "omarchy", "args": "", "previewSeconds": 12}
 data = dict(defaults)
 if os.path.isfile(path):
     try:

@@ -89,8 +89,8 @@ fi
 if [[ ! -f "${HOME_DIR}/.config/omarchy/beforelight.json" ]]; then
   cat > "${HOME_DIR}/.config/omarchy/beforelight.json" <<'JSON'
 {
-  "engine": "beforelight",
-  "selected": "toastersaver",
+  "engine": "omarchy",
+  "selected": "omarchy",
   "args": "",
   "previewSeconds": 12,
   "settings": {}

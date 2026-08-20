@@ -31,5 +31,5 @@ function parseList(raw) {
 
 function indexOf(items, id) {
   for (var i = 0; i < items.length; i++) if (items[i].id === id) return i
-  return 0
+  return -1
 }

@@ -62,7 +62,7 @@ BarWidget {
     id: button
     anchors.fill: parent
     bar: root.bar
-    text: root.panelItem ? root.panelItem.barLabel() : "🍞"
+    text: root.panelItem ? root.panelItem.barLabel() : "🅰️"
     tooltipText: root.panelItem ? root.panelItem.tooltipText() : "Before Light screensaver"
     horizontalMargin: 8.5
 
