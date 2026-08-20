@@ -142,10 +142,8 @@ overlay_so() {
   here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
   local candidate
   for candidate in \
-    "${here}/libbeforelight-overlay.so" \
     "${HOME_DIR}/.config/omarchy/bin/libbeforelight-overlay.so" \
-    "${here}/../engine/overlay/libbeforelight-overlay.so" \
-    "${here}/../prebuilt/libbeforelight-overlay.so"
+    "${here}/libbeforelight-overlay.so"
   do
     if [[ -f "${candidate}" ]]; then
       echo "${candidate}"
