@@ -9,15 +9,16 @@
  * - -d N: star density (0=sparse, 1=dense, default 0.5)
  * - -m F: meteor frequency multiplier (default 1.0, higher = more meteors)
  *
- * Requires: SDL2, mesa/opengl (wayland)
- * Build: gcc -o starrynight starrynight.c -lSDL2 -lGL -lm
+ * Requires: SDL2
+ * Build: gcc -o starrynight starrynight.c `sdl2-config --cflags --libs` -lm
  * Run: SDL_VIDEODRIVER=wayland ./starrynight
  */
 
-#include <SDL.h>
-#include <GL/gl.h>
-#include <GL/glu.h>
+#include <SDL2/SDL.h>
+#include "beforelight_input.h"
+#include "starry_gl_sdl.h"
 #include <math.h>
+#include <stdio.h>
 #include <time.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -778,7 +779,6 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    // Force Wayland for Hyprland compatibility
     SDL_SetHint(SDL_HINT_VIDEODRIVER, "wayland");
 
     srand((unsigned int)time(NULL));
@@ -788,11 +788,31 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    // Get display info for auto-detection
-    SDL_DisplayMode dm;
-    SDL_GetDesktopDisplayMode(0, &dm);
-    int screen_width = dm.w;
-    int screen_height = dm.h;
+    SDL_Window *window = SDL_CreateWindow("Starry Night",
+                                          SDL_WINDOWPOS_UNDEFINED,
+                                          SDL_WINDOWPOS_UNDEFINED,
+                                          800, 600,
+                                          SDL_WINDOW_SHOWN | SDL_WINDOW_BORDERLESS | SDL_WINDOW_RESIZABLE);
+    if (!window) {
+        fprintf(stderr, "Window creation failed: %s\n", SDL_GetError());
+        SDL_Quit();
+        return 1;
+    }
+    g_r = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    if (!g_r)
+        g_r = SDL_CreateRenderer(window, -1, 0);
+    if (!g_r) {
+        fprintf(stderr, "Renderer failed: %s\n", SDL_GetError());
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        return 1;
+    }
+    SDL_SetRenderDrawBlendMode(g_r, SDL_BLENDMODE_BLEND);
+    SDL_ShowCursor(0);
+
+    int screen_width = 800, screen_height = 600;
+    SDL_GetRendererOutputSize(g_r, &screen_width, &screen_height);
+    init_opengl(screen_width, screen_height);
 
     // CHUNK 1: ESTABLISH URBAN SYSTEM FOUNDATION
     // Initialize sophisticated urban building data architecture
@@ -873,38 +893,8 @@ int main(int argc, char *argv[]) {
         star_idx++;
     }
 
-    // Create fullscreen window using SDL_WINDOW_FULLSCREEN_DESKTOP for proper Hyprland integration
-    SDL_Window *window = SDL_CreateWindow("Starry Night",
-                                          SDL_WINDOWPOS_UNDEFINED,
-                                          SDL_WINDOWPOS_UNDEFINED,
-                                          screen_width, screen_height,
-                                          SDL_WINDOW_SHOWN | SDL_WINDOW_BORDERLESS | SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL);
-
-    if (!window) {
-        fprintf(stderr, "Window creation failed: %s\n", SDL_GetError());
-        SDL_Quit();
-        return 1;
-    }
-
-    // Create OpenGL context for hardware acceleration
-    SDL_GLContext gl_context = SDL_GL_CreateContext(window);
-    if (!gl_context) {
-        fprintf(stderr, "GL context creation failed: %s\n", SDL_GetError());
-        SDL_DestroyWindow(window);
-        SDL_Quit();
-        return 1;
-    }
-
-    // Initialize OpenGL
+    SDL_GetRendererOutputSize(g_r, &screen_width, &screen_height);
     init_opengl(screen_width, screen_height);
-
-    // FORCE IMMEDIATE BUFFER SWAPPING - DISABLE ALL FADING EFFECTS
-    SDL_GL_SetSwapInterval(0);  // Disable VSYNC and any fade transitions
-    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1); // Ensure double buffering
-    SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8); // Stencil buffer for masking
-
-    // SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
-    SDL_ShowCursor(0);  // Hide mouse cursor
 
     // BUILDING TEMPLATES AND COMPLEX LIGHTING LOGIC REMOVED - CLEANING UP VISUAL ARTIFACTS
 
@@ -922,24 +912,32 @@ int main(int argc, char *argv[]) {
     // OLD BACKGROUND STAR SYSTEM REMOVED - Replaced with gap stars that fill spaces between buildings
 
     Uint64 last_time = SDL_GetTicks64();
+    Uint32 start_time = SDL_GetTicks();
+    BeforelightInput input = {0};
     float meteor_timer = 0;
 
-    // Main animation loop
     SDL_Event event;
     bool running = true;
 
     while (running) {
-        // Handle events
         while (SDL_PollEvent(&event)) {
             switch (event.type) {
                 case SDL_QUIT:
                     running = false;
                     break;
                 case SDL_KEYDOWN:
-                    running = false;
-                    break;
                 case SDL_MOUSEBUTTONDOWN:
                     running = false;
+                    break;
+                case SDL_MOUSEMOTION:
+                    if (beforelight_should_quit_motion(&input, start_time, &event))
+                        running = false;
+                    break;
+                case SDL_WINDOWEVENT:
+                    if (event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
+                        SDL_GetRendererOutputSize(g_r, &screen_width, &screen_height);
+                        init_opengl(screen_width, screen_height);
+                    }
                     break;
             }
         }
@@ -1002,65 +1000,25 @@ int main(int argc, char *argv[]) {
             }
         }
 
-        // BUILDING LIGHT FILLING SYSTEM REMOVED - No more gradual light increases
-        // Render scene - DISABLE all clearing to eliminate ANY possible fade effects
-        // glClear(GL_COLOR_BUFFER_BIT);
+        SDL_SetRenderDrawColor(g_r, 0, 0, 0, 255);
+        SDL_RenderClear(g_r);
 
-        // Clear stencil buffer to 0 for masking
-        glClearStencil(0);
-        glStencilMask(0xFF);
-        glClear(GL_STENCIL_BUFFER_BIT);
-
-        // Render solid black background first
-        glDisable(GL_SCISSOR_TEST);
-        glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-        glBegin(GL_QUADS);
-        glColor3f(0.0f, 0.0f, 0.0f); // ABSOLUTE PURE BLACK
-        glVertex2f(0.0f, 0.0f);
-        glVertex2f(screen_width, 0.0f);
-        glVertex2f(screen_width, screen_height);
-        glVertex2f(0.0f, screen_height);
-        glEnd();
-
-        // SETUP STENCIL FOR BUILDING MASKING
-        glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);  // Disable color writing
-        glStencilFunc(GL_ALWAYS, 1, 0xFF);  // Write 1 to stencil where buildings are
-        glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
-
-        // Draw building masks to stencil buffer (invisible on screen)
-        // Using dynamic urban_complex data instead of removed static array
-        for (int build_idx = 0; build_idx < MAX_URBAN_BUILDINGS; build_idx++) {
-            UrbanBuilding *structure = &urban_complex[build_idx];
-            if (structure->floor_quantity <= 0) continue; // Skip uninitialized buildings
-
-            float build_x_start = structure->x;
-            float build_y_start = structure->y;
-            float build_width = structure->width;
-            float build_height = structure->height;
-
-            glBegin(GL_QUADS);
-            glVertex2f(build_x_start, build_y_start);
-            glVertex2f(build_x_start + build_width, build_y_start);
-            glVertex2f(build_x_start + build_width, build_y_start + build_height);
-            glVertex2f(build_x_start, build_y_start + build_height);
-            glEnd();
-        }
-
-        // ENABLE STENCIL MASKING - only render where stencil is 0 (not buildings)
-        glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);  // Re-enable color writing
-        glStencilFunc(GL_EQUAL, 0, 0xFF);  // Only render where stencil is 0
-        glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
-
-
-
-        // Render sky stars (buildings static, stars work normally)
-        glPointSize(1.0f); // Ensure proper star point size
+        glPointSize(1.0f);
         render_stars(stars, actual_star_count, screen_width, screen_height);
 
-        // RENDER GAP STARS BETWEEN BUILDINGS - NO STENCIL NEEDED, they are in open areas
         render_stars(gap_stars, GAP_STAR_COUNT, screen_width, screen_height);
 
-        // No stencil operations needed for gap stars - they render in open spaces
+        glColor3f(0.0f, 0.0f, 0.0f);
+        for (int build_idx = 0; build_idx < MAX_URBAN_BUILDINGS; build_idx++) {
+            UrbanBuilding *structure = &urban_complex[build_idx];
+            if (structure->floor_quantity <= 0) continue;
+            glBegin(GL_QUADS);
+            glVertex2f(structure->x, structure->y);
+            glVertex2f(structure->x + structure->width, structure->y);
+            glVertex2f(structure->x + structure->width, structure->y + structure->height);
+            glVertex2f(structure->x, structure->y + structure->height);
+            glEnd();
+        }
 
         // ADD ARCHITECTURAL 3D OUTLINES - Subtle depth suggestion for mass and form
         glLineWidth(2.5f); // Slightly thicker for architectural presence
@@ -1126,14 +1084,13 @@ int main(int argc, char *argv[]) {
         // Render intelligent building occupancy visualization with time-sensitive patterns
         render_illuminated_window_grids(screen_width, screen_height);
 
-        // Swap buffers
-        SDL_GL_SwapWindow(window);
-        SDL_Delay(16); // Cap at ~60 FPS
+        SDL_RenderPresent(g_r);
+        SDL_Delay(16);
     }
 
-    // Cleanup
     free(stars);
-    SDL_GL_DeleteContext(gl_context);
+    free(gap_stars);
+    SDL_DestroyRenderer(g_r);
     SDL_DestroyWindow(window);
     SDL_Quit();
 
@@ -1153,19 +1110,8 @@ void usage(const char *prog) {
 }
 
 void init_opengl(int width, int height) {
-    glViewport(0, 0, width, height);
-
-    // Set up orthographic projection
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-    gluOrtho2D(0, width, 0, height);
-
-    glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity();
-
-    // Enable blending for transparency effects
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    g_w = width;
+    g_h = height;
 
     // Point smoothing for star glow
     glEnable(GL_POINT_SMOOTH);

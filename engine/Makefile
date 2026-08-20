@@ -65,8 +65,8 @@ paperfire: main_paperfire.c | $(BUILD)
 worms: main_worms.c | $(BUILD)
 	$(CC) $(CFLAGS) -o $(BUILD)/worms main_worms.c $(LDFLAGS) -lSDL2_ttf -lSDL2_mixer
 
-starrynight: starrynight.c | $(BUILD)
-	$(CC) $(CFLAGS) -o $(BUILD)/starrynight starrynight.c $(LDFLAGS) -lSDL2_ttf -lGL -lGLU
+starrynight: starrynight.c starry_gl_sdl.h | $(BUILD)
+	$(CC) $(CFLAGS) -Wno-unused-function -o $(BUILD)/starrynight starrynight.c $(LDFLAGS)
 
 dist: all
 	$(MAKE) -C overlay
