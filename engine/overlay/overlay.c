@@ -155,6 +155,9 @@ SDL_Window *SDL_CreateWindow(const char *title, int x, int y, int w, int h, unsi
     SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_HIDDEN_BOOLEAN, true);
     SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_FULLSCREEN_BOOLEAN, false);
     SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_BORDERLESS_BOOLEAN, true);
+    /* SDL2 SDL_WINDOW_OPENGL — Starry Night (and any GL saver) needs this. */
+    if (flags & 0x00000002u)
+        SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_OPENGL_BOOLEAN, true);
     /* Fractional output scale + high-dpi made Hyprland map the overlay
      * at 1500/1.6 × 1000/1.6 instead of covering the monitor. */
 
