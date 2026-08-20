@@ -99,7 +99,7 @@ Panel {
       loadError = parsed.error
       return
     }
-    var keepY = saverList.visible && saverList.count > 0
+    var keepY = saverList.visible && saverList.contentHeight > 0
     var y = saverList.contentY
     items = parsed.items
     selectedId = parsed.selected
@@ -112,16 +112,26 @@ Panel {
         var maxY = Math.max(0, saverList.contentHeight - saverList.height)
         saverList.contentY = Math.min(Math.max(0, y), maxY)
       } else {
-        saverList.positionViewAtIndex(root.cursorIndex, ListView.Contain)
+        root.ensureRowVisible(root.cursorIndex)
       }
     })
+  }
+
+  function ensureRowVisible(index) {
+    if (!saverList.visible || index < 0) return
+    var row = Style.space(36)
+    var y = index * row
+    if (y < saverList.contentY)
+      saverList.contentY = y
+    else if (y + row > saverList.contentY + saverList.height)
+      saverList.contentY = y + row - saverList.height
   }
 
   function moveCursor(delta) {
     if (items.length === 0) return
     cursorActive = true
     cursorIndex = ((cursorIndex + delta) % items.length + items.length) % items.length
-    if (saverList.visible) saverList.positionViewAtIndex(cursorIndex, ListView.Contain)
+    if (saverList.visible) root.ensureRowVisible(cursorIndex)
   }
 
   function selectFocused() {
@@ -423,26 +433,32 @@ Panel {
           id: listWrap
           visible: !root.settingsOpen
           width: parent.width
-          height: Math.min(Style.space(320), Math.max(Style.space(120), saverList.count * Style.space(36)))
-          readonly property bool overflow: saverList.count * Style.space(36) > height + 1
+          height: Math.min(Style.space(320), Math.max(Style.space(120), root.items.length * Style.space(36)))
+          readonly property bool overflow: root.items.length * Style.space(36) > height + 1
           readonly property real travel: Math.max(1, saverList.contentHeight - saverList.height)
           clip: false
 
-          ListView {
+          Flickable {
             id: saverList
             anchors.fill: parent
             anchors.rightMargin: listWrap.overflow ? Style.space(12) : 0
             clip: true
-            model: root.items
-            currentIndex: root.cursorIndex
-            highlightFollowsCurrentItem: false
             boundsBehavior: Flickable.StopAtBounds
             flickableDirection: Flickable.VerticalFlick
+            contentWidth: width
+            contentHeight: listColumn.height
 
-            delegate: Item {
+            Column {
+              id: listColumn
+              width: saverList.width
+              spacing: 0
+
+              Repeater {
+                model: root.items
+                delegate: Item {
             required property var modelData
             required property int index
-            width: saverList.width
+            width: listColumn.width
             height: Style.space(36)
 
             readonly property bool isSelected: modelData.id === root.selectedId
@@ -527,6 +543,8 @@ Panel {
               onDoubleClicked: root.selectSaver(modelData.id, true)
             }
           }
+              }
+            }
           }
 
           Item {

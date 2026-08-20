@@ -34,6 +34,6 @@ o.window(
 hl.layer_rule({
   match = { namespace = "^beforelight$" },
   no_anim = true,
-  order = 100,
+  order = 999,
 })
 -- End Before Light
