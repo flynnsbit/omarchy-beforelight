@@ -28,6 +28,9 @@ if [[ "${engine}" != "beforelight" ]]; then
 fi
 
 screensaver_in_focus() {
+  if hyprctl layers 2>/dev/null | grep -q 'namespace: beforelight'; then
+    return 0
+  fi
   hyprctl activewindow -j | jq -e '
     .class == "org.omarchy.screensaver"
     or (.class | test("^(toastersaver|fishsaver|globe|spotlight|starrynight|matrix|warp|worms|bouncingball|fadeout|hardrain|rainstorm|paperfire|lifeforms|lifeforms_new|logo|messages|messages2|randomizer)$"))
@@ -48,7 +51,6 @@ hyprctl eval 'hl.config({ cursor = { invisible = true } })' &>/dev/null \
   || hyprctl keyword cursor:invisible true &>/dev/null || true
 
 if mkdir "${RUN_LOCK}" 2>/dev/null; then
-  "${BIN}" hide-bar >/dev/null 2>&1 || true
   "${BIN}" run &
   saver_pid=$!
   echo "${saver_pid}" > "${XDG_RUNTIME_DIR:-/tmp}/beforelight.pid"

@@ -15,7 +15,25 @@ do
   hl.env("PATH", table.concat(kept, ":"))
 end
 
+-- SDL savers are a wlr-layer-shell Overlay (namespace "beforelight") so they
+-- cover the bar without hiding Omarchy UI. Keep this rule as a fallback if
+-- the overlay shim is missing. Do not set fullscreen=true (toggle) or pin.
 o.window(
   "^(toastersaver|fishsaver|globe|spotlight|starrynight|matrix|warp|worms|bouncingball|fadeout|hardrain|rainstorm|paperfire|lifeforms|lifeforms_new|logo|messages|messages2|randomizer|org.omarchy.screensaver)$",
-  { fullscreen = true, float = true, animation = "none", opacity = "1 1", tag = "-default-opacity" }
+  {
+    float = true,
+    fullscreen_state = "2 2",
+    stay_focused = true,
+    opaque = true,
+    no_anim = true,
+    opacity = "1 1",
+    tag = "-default-opacity",
+  }
 )
+
+hl.layer_rule({
+  match = { namespace = "^beforelight$" },
+  no_anim = true,
+  order = 100,
+})
+-- End Before Light

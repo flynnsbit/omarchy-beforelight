@@ -1,4 +1,9 @@
 engine/build/
+engine/overlay/*.o
+engine/overlay/*.so
+engine/overlay/*-protocol.c
+engine/overlay/*-protocol.h
+engine/overlay/*-client-protocol.h
 **/*.o
 **/*.tmp
 .DS_Store

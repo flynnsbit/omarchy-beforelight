@@ -114,77 +114,53 @@ saver_names() {
 }
 
 kill_savers() {
-  local names
+  local names pid name
   names="$(saver_names)"
-  if [[ -n "${names}" ]]; then
-    # shellcheck disable=SC2086
-    pkill -x ${names} 2>/dev/null || true
-  fi
+  for name in ${names}; do
+    pkill -x "${name}" 2>/dev/null || true
+  done
   if [[ -f "${PID_FILE}" ]]; then
-    local pid
     pid="$(cat "${PID_FILE}" 2>/dev/null || true)"
     if [[ -n "${pid}" ]]; then
       kill "${pid}" 2>/dev/null || true
     fi
     rm -f "${PID_FILE}"
   fi
+  sleep 0.05
+  for name in ${names}; do
+    pkill -9 -x "${name}" 2>/dev/null || true
+  done
   restore_bar
 }
 
-hide_bar() {
-  local flag_dir="${HOME}/.local/state/omarchy/toggles"
-  local flag="${flag_dir}/bar-off"
-  mkdir -p "${flag_dir}"
-  if [[ ! -f "${flag}" ]]; then
-    touch "${flag}"
-    echo 1 > "${HID_BAR_FLAG}"
-  fi
-  # Kick the bar's directory FileView so it re-runs the bar-off probe.
-  touch "${flag_dir}/.beforelight-kick" 2>/dev/null || true
-  python3 - <<'PY' >/dev/null 2>&1 || true
-import json, subprocess, time
+# Do not hide Omarchy UI. The saver is a layer-shell overlay above the bar.
+hide_bar() { :; }
+restore_bar() { :; }
 
-def layers_hidden():
-    try:
-        raw = subprocess.check_output(["hyprctl", "layers"], text=True)
-    except Exception:
-        return False
-    bar_offscreen = False
-    cat_gone = True
-    for line in raw.splitlines():
-        if "namespace: omarchy-bar," in line and "move-ghost" not in line:
-            # xywh: X Y W H
-            if "xywh:" in line:
-                try:
-                    part = line.split("xywh:")[1].split(",")[0].strip()
-                    y = int(part.split()[1])
-                    h = int(part.split()[3])
-                    bar_offscreen = y + h <= 0
-                except (IndexError, ValueError):
-                    bar_offscreen = False
-        if "namespace: navbar-cat" in line:
-            cat_gone = False
-    return bar_offscreen and cat_gone
-
-deadline = time.time() + 1.5
-while time.time() < deadline:
-    if layers_hidden():
-        break
-    time.sleep(0.05)
-PY
+overlay_so() {
+  local here
+  here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  local candidate
+  for candidate in \
+    "${here}/libbeforelight-overlay.so" \
+    "${HOME_DIR}/.config/omarchy/bin/libbeforelight-overlay.so" \
+    "${here}/../engine/overlay/libbeforelight-overlay.so" \
+    "${here}/../prebuilt/libbeforelight-overlay.so"
+  do
+    if [[ -f "${candidate}" ]]; then
+      echo "${candidate}"
+      return 0
+    fi
+  done
+  return 1
 }
 
-restore_bar() {
-  local flag_dir="${HOME}/.local/state/omarchy/toggles"
-  if [[ -f "${HID_BAR_FLAG}" ]]; then
-    rm -f "${flag_dir}/bar-off"
-    rm -f "${HID_BAR_FLAG}"
+enable_overlay() {
+  local so
+  so="$(overlay_so || true)"
+  if [[ -n "${so}" && "${BEFORELIGHT_OVERLAY:-1}" != "0" ]]; then
+    export LD_PRELOAD="${so}${LD_PRELOAD:+:${LD_PRELOAD}}"
   fi
-  rm -f "${flag_dir}/.beforelight-kick"
-  # Wake the bar and cover FileViews even if the flag files are already gone.
-  mkdir -p "${flag_dir}"
-  touch "${flag_dir}/.beforelight-kick"
-  rm -f "${flag_dir}/.beforelight-kick"
 }
 
 fullscreen_pid() {
@@ -244,11 +220,19 @@ def is_fullscreen(client):
 def ensure_fullscreen(client):
     if is_fullscreen(client):
         return True
-    klass = str(client.get("class") or "")
-    # SET fullscreen. Do not call fullscreen({ mode = "fullscreen" }) — that toggles
-    # and turns an already-fullscreen preview into a small centered window.
-    run_dispatch(f'hl.dsp.focus({{ window = "class:{klass}" }})')
-    run_dispatch("hl.dsp.window.fullscreen_state({ internal = 2, client = 2 })")
+    addr = str(client.get("address") or "")
+    win = f"address:{addr}" if addr else ""
+    if not win:
+        return False
+    # SET covering fullscreen. Never toggle. Never use internal=3 (not user-settable).
+    run_dispatch(
+        f'hl.dsp.window.fullscreen({{ mode = "fullscreen", action = "set", layout_aware = false, window = "{win}" }})'
+    )
+    if is_fullscreen(client):
+        return True
+    run_dispatch(
+        f'hl.dsp.window.fullscreen_state({{ internal = 2, client = 2, action = "set", layout_aware = false, window = "{win}" }})'
+    )
     return True
 
 deadline = time.time() + 4
@@ -294,7 +278,7 @@ launch_sdl() {
   export SDL_VIDEODRIVER="${SDL_VIDEODRIVER:-wayland}"
   export SDL_HINT_APP_ID="${SDL_HINT_APP_ID:-org.omarchy.screensaver}"
   export SDL_VIDEO_WAYLAND_WMCLASS="${SDL_VIDEO_WAYLAND_WMCLASS:-org.omarchy.screensaver}"
-  hide_bar
+  enable_overlay
   local saver_pid
   saver_pid="$(python3 - "${bin}" "${id}" "${extra}" <<'PY'
 import json, os, subprocess, sys
@@ -394,15 +378,13 @@ cmd_preview() {
     return 0
   fi
   acquire_lock "${PREVIEW_LOCK}" || true
-  # Hide the bar in THIS process before returning to Quickshell, so the
-  # layer is already off-screen when the saver maps. Doing it only in the
-  # background subshell raced the window and left a bar strip on top.
-  hide_bar
+  enable_overlay
   (
     trap '' HUP
     export SDL_VIDEODRIVER="${SDL_VIDEODRIVER:-wayland}"
     export SDL_HINT_APP_ID="${SDL_HINT_APP_ID:-org.omarchy.screensaver}"
     export SDL_VIDEO_WAYLAND_WMCLASS="${SDL_VIDEO_WAYLAND_WMCLASS:-org.omarchy.screensaver}"
+    export LD_PRELOAD="${LD_PRELOAD:-}"
     export BEFORELIGHT_GRACE_MS="${BEFORELIGHT_GRACE_MS:-400}"
     export BEFORELIGHT_MOVE_PX="${BEFORELIGHT_MOVE_PX:-28}"
     saver_pid="$(python3 - "$(binary_for "${id}")" "${id}" "${args}" <<'PY'
@@ -506,8 +488,8 @@ Usage: omarchy-beforelight <command>
   run               Run the selected saver in the foreground
   schema [id]       Settings schema JSON
   set-setting <id> <key> <value>
-  hide-bar          Hide the Omarchy bar (used by idle)
-  restore-bar       Show the bar again if we hid it
+  hide-bar          No-op (kept for compatibility)
+  restore-bar       No-op (kept for compatibility)
 EOF
 }
 

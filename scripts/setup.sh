@@ -21,6 +21,29 @@ install -Dm0755 "${ROOT}/bin/omarchy-beforelight" "${BIN_DST}/omarchy-beforeligh
 install -Dm0755 "${ROOT}/bin/omarchy-beforelight-settings" "${BIN_DST}/omarchy-beforelight-settings"
 install -Dm0755 "${ROOT}/bin/omarchy-screensaver" "${BIN_DST}/omarchy-screensaver"
 
+install_overlay() {
+  local dest="${BIN_DST}/libbeforelight-overlay.so"
+  if [[ -f "${ROOT}/engine/overlay/libbeforelight-overlay.so" ]]; then
+    install -Dm0755 "${ROOT}/engine/overlay/libbeforelight-overlay.so" "${dest}"
+    return 0
+  fi
+  if [[ -f "${ROOT}/prebuilt/libbeforelight-overlay.so" ]]; then
+    install -Dm0755 "${ROOT}/prebuilt/libbeforelight-overlay.so" "${dest}"
+    return 0
+  fi
+  if command -v gcc >/dev/null && command -v wayland-scanner >/dev/null && command -v pkg-config >/dev/null; then
+    if pkg-config --exists wayland-client sdl3 && [[ -d "${ROOT}/engine/overlay" ]]; then
+      log "Building overlay shim…"
+      make -C "${ROOT}/engine/overlay" -j"$(nproc)"
+      install -Dm0755 "${ROOT}/engine/overlay/libbeforelight-overlay.so" "${dest}"
+      return 0
+    fi
+  fi
+  log "No overlay shim; savers will use compositor fullscreen instead of layer-shell"
+}
+
+install_overlay
+
 install_savers() {
   local src="$1"
   local f
@@ -77,13 +100,30 @@ if [[ -n "${CURRENT_PATH}" && "${CURRENT_PATH}" != "${HOME_DIR}/.config/omarchy/
 fi
 hyprctl eval "hl.env(\"PATH\", \"${HOME_DIR}/.config/omarchy/bin:\" .. (os.getenv(\"PATH\") or \"\"))" >/dev/null 2>&1 || true
 
-if [[ -f "${HYPR}" ]] && ! grep -q "${MARKER}" "${HYPR}"; then
-  log "Appending Hyprland PATH + window rules…"
-  {
-    echo
-    echo "-- ${MARKER}"
-    cat "${ROOT}/scripts/hypr-snippet.lua"
-  } >> "${HYPR}"
+END_MARKER="End Before Light"
+if [[ -f "${HYPR}" ]]; then
+  python3 - "${HYPR}" "${ROOT}/scripts/hypr-snippet.lua" "${MARKER}" "${END_MARKER}" <<'PY'
+import pathlib, sys
+hypr, snippet, marker, end = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2]), sys.argv[3], sys.argv[4]
+text = hypr.read_text()
+block = snippet.read_text().rstrip() + "\n"
+start = text.find(marker)
+if start < 0:
+    hypr.write_text(text.rstrip() + "\n\n" + block)
+    sys.exit(0)
+# Include the comment leader on the marker line.
+line_start = text.rfind("\n", 0, start) + 1
+stop = text.find(end, start)
+if stop < 0:
+    rest = ""
+    new = text[:line_start] + block
+else:
+    stop = text.find("\n", stop)
+    rest = text[stop + 1 :] if stop >= 0 else ""
+    new = text[:line_start] + block + rest
+if new != text:
+    hypr.write_text(new)
+PY
   hyprctl reload >/dev/null 2>&1 || true
 fi
 

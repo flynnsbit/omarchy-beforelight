@@ -24,7 +24,7 @@ Then click the Before Light icon.
 
 - Click the bar icon to pick a screensaver.
 - On the **ON** row: play previews fullscreen, stop ends preview, cog opens settings (hidden when that saver has none).
-- Idle uses the ON saver.
+- Idle uses the ON saver. The SDL window is a topmost overlay, so the Omarchy bar stays running underneath and does not have to hide or come back.
 
 ## Remove
 
