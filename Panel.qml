@@ -66,8 +66,9 @@ Panel {
   }
 
   function open() {
-    root.refresh()
+    if (items.length === 0) root.refresh()
     root.controller.show()
+    Qt.callLater(function() { root.ensureRowVisible(root.cursorIndex) })
   }
 
   function close() {
@@ -99,22 +100,15 @@ Panel {
       loadError = parsed.error
       return
     }
-    var keepY = saverList.visible && saverList.contentHeight > 0
-    var y = saverList.contentY
-    items = parsed.items
     selectedId = parsed.selected
     engine = parsed.engine
-    var idx = Model.indexOf(items, selectedId)
+    var idx = Model.indexOf(parsed.items, selectedId)
     cursorIndex = idx >= 0 ? idx : 0
-    Qt.callLater(function() {
-      if (!saverList.visible) return
-      if (keepY) {
-        var maxY = Math.max(0, saverList.contentHeight - saverList.height)
-        saverList.contentY = Math.min(Math.max(0, y), maxY)
-      } else {
-        root.ensureRowVisible(root.cursorIndex)
-      }
-    })
+    if (idsMatch(parsed.items))
+      return
+    pendingListY = saverList.visible ? saverList.contentY : -1
+    items = parsed.items
+    Qt.callLater(root.restoreListY)
   }
 
   function ensureRowVisible(index) {
@@ -140,6 +134,21 @@ Panel {
   }
 
   property bool previewAfterSelect: false
+  property real pendingListY: -1
+
+  function idsMatch(next) {
+    if (!items || !next || items.length !== next.length) return false
+    for (var i = 0; i < items.length; i++)
+      if (items[i].id !== next[i].id) return false
+    return true
+  }
+
+  function restoreListY() {
+    if (pendingListY < 0 || !saverList.visible || saverList.contentHeight <= 0) return
+    var maxY = Math.max(0, saverList.contentHeight - saverList.height)
+    saverList.contentY = Math.min(Math.max(0, pendingListY), maxY)
+    pendingListY = -1
+  }
 
   function selectSaver(id, thenPreview) {
     if (!id || setProcess.running) return
@@ -236,9 +245,7 @@ Panel {
   Process {
     id: setProcess
     running: false
-    onExited: function(code) {
-      if (code !== 0)
-        root.refresh()
+    onExited: function(exitCode) {
       if (root.previewAfterSelect) {
         root.previewAfterSelect = false
         Qt.callLater(root.previewOnSaver)
@@ -447,6 +454,7 @@ Panel {
             flickableDirection: Flickable.VerticalFlick
             contentWidth: width
             contentHeight: listColumn.height
+            onContentHeightChanged: root.restoreListY()
 
             Column {
               id: listColumn
