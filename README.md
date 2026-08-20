@@ -16,7 +16,7 @@ Infinisys, or After Dark.
 
 <br><br>
 
-<img src="preview.png" alt="Origami paper toasters flying across a dusk sky" width="820">
+<img src="preview.png" alt="The Before Light picker dropped from the Omarchy bar" width="820">
 
 </div>
 
