@@ -1,0 +1,531 @@
+#!/usr/bin/env bash
+# Before Light — select, preview, and run SDL savers on Omarchy 4.
+set -euo pipefail
+
+HOME_DIR="${HOME}"
+SAVER_DIR="${HOME_DIR}/.config/omarchy/branding/screensaver"
+CONFIG_PATH="${HOME_DIR}/.config/omarchy/beforelight.json"
+RUN_LOCK="${XDG_RUNTIME_DIR:-/tmp}/beforelight.run.lock"
+PREVIEW_LOCK="${XDG_RUNTIME_DIR:-/tmp}/beforelight.preview.lock"
+PID_FILE="${XDG_RUNTIME_DIR:-/tmp}/beforelight.pid"
+HID_BAR_FLAG="${XDG_RUNTIME_DIR:-/tmp}/beforelight.hid-bar"
+OFFICIAL_SCREENSAVER="/usr/share/omarchy/bin/omarchy-screensaver"
+SAVER_CLASS_RE='^(toastersaver|fishsaver|globe|spotlight|starrynight|matrix|warp|worms|bouncingball|fadeout|hardrain|rainstorm|paperfire|lifeforms|lifeforms_new|logo|messages|messages2|randomizer|org\\.omarchy\\.screensaver)$'
+
+catalog_json() {
+  python3 - "$SAVER_DIR" <<'PY'
+import json, os, sys
+saver_dir = sys.argv[1]
+catalog = [
+    {"id": "toastersaver", "name": "Paper Toasters", "emoji": "🍞", "blurb": "Origami-winged toasters on the breeze"},
+    {"id": "fishsaver", "name": "Aquarium", "emoji": "🐟", "blurb": "Pixel fish swimming a home tank"},
+    {"id": "globe", "name": "Globe", "emoji": "🌍", "blurb": "Earth spinning in space"},
+    {"id": "spotlight", "name": "Spotlight", "emoji": "🔦", "blurb": "City night with a moving beam"},
+    {"id": "starrynight", "name": "Starry Night", "emoji": "✨", "blurb": "Starfield over a city silhouette"},
+    {"id": "matrix", "name": "Code Rain", "emoji": "🟢", "blurb": "Falling green code rain"},
+    {"id": "warp", "name": "Warp", "emoji": "💫", "blurb": "Liquid distortion field"},
+    {"id": "worms", "name": "Worms", "emoji": "🪱", "blurb": "Crawling type worms"},
+    {"id": "bouncingball", "name": "Bouncing Balls", "emoji": "⚽", "blurb": "Physics balls and collisions"},
+    {"id": "fadeout", "name": "Fade Out", "emoji": "🌫️", "blurb": "Soft cloud fade"},
+    {"id": "hardrain", "name": "Hard Rain", "emoji": "🌧️", "blurb": "Heavy rain drops"},
+    {"id": "rainstorm", "name": "Rainstorm", "emoji": "⛈️", "blurb": "Layered storm rain"},
+    {"id": "paperfire", "name": "Paper Fire", "emoji": "🔥", "blurb": "Burning paper embers"},
+    {"id": "lifeforms", "name": "Life Forms", "emoji": "🦠", "blurb": "Conway's Game of Life"},
+    {"id": "lifeforms_new", "name": "Life Forms+", "emoji": "🧬", "blurb": "Alternate Game of Life"},
+    {"id": "logo", "name": "Logo", "emoji": "🏷️", "blurb": "Morphing Omarchy logo"},
+    {"id": "messages", "name": "Messages", "emoji": "💬", "blurb": "Scrolling text"},
+    {"id": "messages2", "name": "Messages 2", "emoji": "💭", "blurb": "Alternate scrolling text"},
+    {"id": "randomizer", "name": "Randomizer", "emoji": "🎲", "blurb": "Cycles every BeforeLight saver"},
+    {"id": "omarchy", "name": "Omarchy TTE", "emoji": "🅰️", "blurb": "Stock Omarchy terminal effects"},
+]
+installed = []
+for item in catalog:
+    if item["id"] == "omarchy":
+        item["installed"] = True
+        installed.append(item)
+        continue
+    path = os.path.join(saver_dir, item["id"])
+    item["installed"] = os.path.isfile(path) and os.access(path, os.X_OK)
+    item["path"] = path
+    if item["installed"]:
+        installed.append(item)
+print(json.dumps(installed, indent=2))
+PY
+}
+
+read_config() {
+  python3 - "$CONFIG_PATH" <<'PY'
+import json, os, sys
+path = sys.argv[1]
+defaults = {"engine": "beforelight", "selected": "toastersaver", "args": "", "previewSeconds": 12}
+data = dict(defaults)
+if os.path.isfile(path):
+    try:
+        loaded = json.loads(open(path).read())
+        if isinstance(loaded, dict):
+            data.update(loaded)
+    except Exception:
+        pass
+print(json.dumps(data))
+PY
+}
+
+write_config() {
+  python3 - "$CONFIG_PATH" "$1" "$2" "$3" "$4" <<'PY'
+import json, os, sys
+path, engine, selected, args, preview = sys.argv[1:6]
+os.makedirs(os.path.dirname(path), exist_ok=True)
+data = {"settings": {}}
+if os.path.isfile(path):
+    try:
+        loaded = json.loads(open(path).read())
+        if isinstance(loaded, dict):
+            data.update(loaded)
+    except Exception:
+        pass
+data["engine"] = engine
+data["selected"] = selected
+data["args"] = args
+data["previewSeconds"] = int(preview or data.get("previewSeconds") or 12)
+if not isinstance(data.get("settings"), dict):
+    data["settings"] = {}
+tmp = path + ".tmp"
+with open(tmp, "w") as fh:
+    json.dump(data, fh, indent=2)
+    fh.write("\n")
+os.replace(tmp, path)
+print(json.dumps(data))
+PY
+}
+
+SETTINGS_BIN="${HOME_DIR}/.config/omarchy/bin/omarchy-beforelight-settings"
+
+args_for() {
+  local id="$1"
+  if [[ -x "${SETTINGS_BIN}" ]]; then
+    "${SETTINGS_BIN}" args "${id}"
+  else
+    python3 -c 'import json,sys; print(json.load(sys.stdin).get("args",""))' <<<"$(read_config)"
+  fi
+}
+
+saver_names() {
+  catalog_json | python3 -c 'import json,sys; print(" ".join(x["id"] for x in json.load(sys.stdin) if x["id"] != "omarchy"))'
+}
+
+kill_savers() {
+  local names
+  names="$(saver_names)"
+  if [[ -n "${names}" ]]; then
+    # shellcheck disable=SC2086
+    pkill -x ${names} 2>/dev/null || true
+  fi
+  if [[ -f "${PID_FILE}" ]]; then
+    local pid
+    pid="$(cat "${PID_FILE}" 2>/dev/null || true)"
+    if [[ -n "${pid}" ]]; then
+      kill "${pid}" 2>/dev/null || true
+    fi
+    rm -f "${PID_FILE}"
+  fi
+  restore_bar
+}
+
+hide_bar() {
+  local flag_dir="${HOME}/.local/state/omarchy/toggles"
+  local flag="${flag_dir}/bar-off"
+  mkdir -p "${flag_dir}"
+  if [[ ! -f "${flag}" ]]; then
+    touch "${flag}"
+    echo 1 > "${HID_BAR_FLAG}"
+  fi
+  # Kick the bar's directory FileView so it re-runs the bar-off probe.
+  touch "${flag_dir}/.beforelight-kick" 2>/dev/null || true
+  python3 - <<'PY' >/dev/null 2>&1 || true
+import json, subprocess, time
+
+def layers_hidden():
+    try:
+        raw = subprocess.check_output(["hyprctl", "layers"], text=True)
+    except Exception:
+        return False
+    bar_offscreen = False
+    cat_gone = True
+    for line in raw.splitlines():
+        if "namespace: omarchy-bar," in line and "move-ghost" not in line:
+            # xywh: X Y W H
+            if "xywh:" in line:
+                try:
+                    part = line.split("xywh:")[1].split(",")[0].strip()
+                    y = int(part.split()[1])
+                    h = int(part.split()[3])
+                    bar_offscreen = y + h <= 0
+                except (IndexError, ValueError):
+                    bar_offscreen = False
+        if "namespace: navbar-cat" in line:
+            cat_gone = False
+    return bar_offscreen and cat_gone
+
+deadline = time.time() + 1.5
+while time.time() < deadline:
+    if layers_hidden():
+        break
+    time.sleep(0.05)
+PY
+}
+
+restore_bar() {
+  local flag_dir="${HOME}/.local/state/omarchy/toggles"
+  if [[ -f "${HID_BAR_FLAG}" ]]; then
+    rm -f "${flag_dir}/bar-off"
+    rm -f "${HID_BAR_FLAG}"
+  fi
+  rm -f "${flag_dir}/.beforelight-kick"
+  # Wake the bar and cover FileViews even if the flag files are already gone.
+  mkdir -p "${flag_dir}"
+  touch "${flag_dir}/.beforelight-kick"
+  rm -f "${flag_dir}/.beforelight-kick"
+}
+
+fullscreen_pid() {
+  local pid="$1"
+  python3 - "${pid}" <<'PY' >/dev/null 2>&1 || true
+import json, subprocess, sys, time
+from pathlib import Path
+
+root = int(sys.argv[1])
+CLASSES = {
+    "toastersaver", "fishsaver", "globe", "spotlight", "starrynight", "matrix",
+    "warp", "worms", "bouncingball", "fadeout", "hardrain", "rainstorm",
+    "paperfire", "lifeforms", "lifeforms_new", "logo", "messages", "messages2",
+    "randomizer", "org.omarchy.screensaver",
+}
+
+def descendants(pid):
+    found = {pid}
+    changed = True
+    while changed:
+        changed = False
+        for status in Path("/proc").glob("[0-9]*/status"):
+            try:
+                text = status.read_text()
+            except (OSError, UnicodeDecodeError):
+                continue
+            ppid = cur = None
+            for line in text.splitlines():
+                if line.startswith("Pid:"):
+                    cur = int(line.split()[1])
+                elif line.startswith("PPid:"):
+                    ppid = int(line.split()[1])
+            if cur is not None and ppid in found and cur not in found:
+                found.add(cur)
+                changed = True
+    return found
+
+def clients():
+    try:
+        return json.loads(subprocess.check_output(["hyprctl", "-j", "clients"], text=True))
+    except Exception:
+        return []
+
+def run_dispatch(expr):
+    return subprocess.run(
+        ["hyprctl", "dispatch", expr],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    ).returncode == 0
+
+def is_fullscreen(client):
+    try:
+        return int(client.get("fullscreen") or 0) >= 2
+    except (TypeError, ValueError):
+        return False
+
+def ensure_fullscreen(client):
+    if is_fullscreen(client):
+        return True
+    klass = str(client.get("class") or "")
+    # SET fullscreen. Do not call fullscreen({ mode = "fullscreen" }) — that toggles
+    # and turns an already-fullscreen preview into a small centered window.
+    run_dispatch(f'hl.dsp.focus({{ window = "class:{klass}" }})')
+    run_dispatch("hl.dsp.window.fullscreen_state({ internal = 2, client = 2 })")
+    return True
+
+deadline = time.time() + 4
+while time.time() < deadline:
+    pids = descendants(root)
+    for client in clients():
+        klass = str(client.get("class") or "")
+        cpid = int(client.get("pid") or 0)
+        if cpid in pids or klass in CLASSES:
+            ensure_fullscreen(client)
+            if is_fullscreen(client) or any(
+                is_fullscreen(c) for c in clients()
+                if str(c.get("class") or "") == klass
+            ):
+                sys.exit(0)
+    time.sleep(0.05)
+PY
+}
+
+acquire_lock() {
+  local dir="$1"
+  mkdir "${dir}" 2>/dev/null
+}
+
+release_lock() {
+  rm -rf "$1" 2>/dev/null || true
+}
+
+binary_for() {
+  local id="$1"
+  echo "${SAVER_DIR}/${id}"
+}
+
+launch_sdl() {
+  local id="$1"
+  local extra="${2:-}"
+  local bin
+  bin="$(binary_for "${id}")"
+  if [[ ! -x "${bin}" ]]; then
+    echo "Screensaver binary not found: ${bin}" >&2
+    return 1
+  fi
+  export SDL_VIDEODRIVER="${SDL_VIDEODRIVER:-wayland}"
+  export SDL_HINT_APP_ID="${SDL_HINT_APP_ID:-org.omarchy.screensaver}"
+  export SDL_VIDEO_WAYLAND_WMCLASS="${SDL_VIDEO_WAYLAND_WMCLASS:-org.omarchy.screensaver}"
+  hide_bar
+  local saver_pid
+  saver_pid="$(python3 - "${bin}" "${id}" "${extra}" <<'PY'
+import json, os, subprocess, sys
+binary, saver_id, extra = sys.argv[1], sys.argv[2], sys.argv[3]
+os.environ.setdefault("SDL_VIDEODRIVER", "wayland")
+os.environ.setdefault("SDL_HINT_APP_ID", "org.omarchy.screensaver")
+os.environ.setdefault("SDL_VIDEO_WAYLAND_WMCLASS", "org.omarchy.screensaver")
+argv = [binary]
+if extra.strip():
+    argv += extra.split()
+else:
+    helper = os.path.expanduser("~/.config/omarchy/bin/omarchy-beforelight-settings")
+    if os.access(helper, os.X_OK):
+        argv += json.loads(subprocess.check_output([helper, "args-json", saver_id], text=True))
+argv += ["-f", "1"]
+proc = subprocess.Popen(argv)
+print(proc.pid)
+PY
+)"
+  saver_pid="${saver_pid//$'\n'/}"
+  echo "${saver_pid}" > "${PID_FILE}"
+  fullscreen_pid "${saver_pid}"
+  wait "${saver_pid}"
+  restore_bar
+}
+
+cmd_list() {
+  local cfg selected engine
+  cfg="$(read_config)"
+  selected="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["selected"])' <<<"${cfg}")"
+  engine="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["engine"])' <<<"${cfg}")"
+  catalog_json | python3 -c "
+import json, sys
+items = json.load(sys.stdin)
+selected = sys.argv[1]
+engine = sys.argv[2]
+for item in items:
+    item['selected'] = (engine == 'omarchy' and item['id'] == 'omarchy') or (
+        engine != 'omarchy' and item['id'] == selected
+    )
+    item['hasSettings'] = item['id'] in {
+        'toastersaver','fishsaver','globe','spotlight','starrynight','matrix','warp',
+        'worms','bouncingball','fadeout','hardrain','rainstorm','paperfire','lifeforms',
+        'lifeforms_new','logo','messages','messages2','randomizer'
+    }
+print(json.dumps({
+    'engine': engine,
+    'selected': 'omarchy' if engine == 'omarchy' else selected,
+    'items': items,
+}))
+" "${selected}" "${engine}"
+}
+
+cmd_get() {
+  read_config
+}
+
+cmd_set() {
+  local id="${1:-}"
+  local args="${2:-}"
+  if [[ -z "${id}" ]]; then
+    echo "usage: omarchy-beforelight set <id> [args]" >&2
+    exit 2
+  fi
+  local cfg engine preview
+  cfg="$(read_config)"
+  preview="$(python3 -c 'import json,sys; print(json.load(sys.stdin).get("previewSeconds",12))' <<<"${cfg}")"
+  if [[ "${id}" == "omarchy" ]]; then
+    write_config omarchy omarchy "${args}" "${preview}" >/dev/null
+  else
+    if [[ ! -x "$(binary_for "${id}")" ]]; then
+      echo "Unknown or missing screensaver: ${id}" >&2
+      exit 1
+    fi
+    write_config beforelight "${id}" "${args}" "${preview}" >/dev/null
+  fi
+  cmd_get
+}
+
+cmd_stop() {
+  kill_savers
+  release_lock "${RUN_LOCK}"
+  release_lock "${PREVIEW_LOCK}"
+}
+
+cmd_preview() {
+  local cfg id args seconds
+  cfg="$(read_config)"
+  # Play/preview always uses the persisted ON selection. A passed id is
+  # ignored so a hovered list row cannot override it.
+  id="$(python3 -c 'import json,sys; d=json.load(sys.stdin); print(d["selected"] if d.get("engine")!="omarchy" else "omarchy")' <<<"${cfg}")"
+  args="$("${SETTINGS_BIN}" args-json "${id}")"
+  seconds="$(python3 -c 'import json,sys; print(int(json.load(sys.stdin).get("previewSeconds",12)))' <<<"${cfg}")"
+  cmd_stop
+  if [[ "${id}" == "omarchy" ]]; then
+    omarchy-launch-screensaver force >/dev/null 2>&1 || true
+    return 0
+  fi
+  acquire_lock "${PREVIEW_LOCK}" || true
+  # Hide the bar in THIS process before returning to Quickshell, so the
+  # layer is already off-screen when the saver maps. Doing it only in the
+  # background subshell raced the window and left a bar strip on top.
+  hide_bar
+  (
+    trap '' HUP
+    export SDL_VIDEODRIVER="${SDL_VIDEODRIVER:-wayland}"
+    export SDL_HINT_APP_ID="${SDL_HINT_APP_ID:-org.omarchy.screensaver}"
+    export SDL_VIDEO_WAYLAND_WMCLASS="${SDL_VIDEO_WAYLAND_WMCLASS:-org.omarchy.screensaver}"
+    export BEFORELIGHT_GRACE_MS="${BEFORELIGHT_GRACE_MS:-400}"
+    export BEFORELIGHT_MOVE_PX="${BEFORELIGHT_MOVE_PX:-28}"
+    saver_pid="$(python3 - "$(binary_for "${id}")" "${id}" "${args}" <<'PY'
+import json, os, subprocess, sys
+binary, saver_id, extra = sys.argv[1], sys.argv[2], sys.argv[3]
+os.environ.setdefault("SDL_VIDEODRIVER", "wayland")
+os.environ.setdefault("SDL_HINT_APP_ID", "org.omarchy.screensaver")
+os.environ.setdefault("SDL_VIDEO_WAYLAND_WMCLASS", "org.omarchy.screensaver")
+argv = [binary]
+if extra.strip():
+    # extra is already a JSON array from args-json, or a leftover string
+    try:
+        argv += json.loads(extra)
+    except json.JSONDecodeError:
+        argv += extra.split()
+else:
+    helper = os.path.expanduser("~/.config/omarchy/bin/omarchy-beforelight-settings")
+    if os.access(helper, os.X_OK):
+        argv += json.loads(subprocess.check_output([helper, "args-json", saver_id], text=True))
+argv += ["-f", "1"]
+proc = subprocess.Popen(argv)
+print(proc.pid)
+PY
+)"
+    saver_pid="${saver_pid//$'\n'/}"
+    fullscreen_pid "${saver_pid}"
+    (
+      sleep "${seconds}"
+      kill "${saver_pid}" 2>/dev/null || true
+    ) &
+    python3 - "${saver_pid}" "${BEFORELIGHT_GRACE_MS}" "${BEFORELIGHT_MOVE_PX}" <<'PY' || true
+import json, os, signal, subprocess, sys, time
+
+pid = int(sys.argv[1])
+grace_ms = int(sys.argv[2])
+threshold = int(sys.argv[3])
+deadline = time.time() + (grace_ms / 1000.0)
+
+def cursor():
+    try:
+        raw = subprocess.check_output(["hyprctl", "-j", "cursorpos"], text=True)
+        data = json.loads(raw)
+        return int(data["x"]), int(data["y"])
+    except Exception:
+        return None
+
+def alive():
+    try:
+        os.kill(pid, 0)
+        return True
+    except OSError:
+        return False
+
+while time.time() < deadline:
+    if not alive():
+        sys.exit(0)
+    time.sleep(0.05)
+
+origin = cursor()
+while alive():
+    pos = cursor()
+    if origin and pos:
+        dx = pos[0] - origin[0]
+        dy = pos[1] - origin[1]
+        if dx * dx + dy * dy >= threshold * threshold:
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except OSError:
+                pass
+            sys.exit(0)
+    time.sleep(0.04)
+PY
+    wait "${saver_pid}" 2>/dev/null || true
+    restore_bar
+    release_lock "${PREVIEW_LOCK}"
+  ) >/dev/null 2>&1 &
+  echo $! > "${PID_FILE}"
+  echo "{\"preview\":\"${id}\",\"seconds\":${seconds}}"
+}
+
+cmd_run() {
+  local cfg engine id
+  cfg="$(read_config)"
+  engine="$(python3 -c 'import json,sys; print(json.load(sys.stdin).get("engine","beforelight"))' <<<"${cfg}")"
+  id="$(python3 -c 'import json,sys; print(json.load(sys.stdin).get("selected","toastersaver"))' <<<"${cfg}")"
+  if [[ "${engine}" == "omarchy" || "${id}" == "omarchy" ]]; then
+    exec "${OFFICIAL_SCREENSAVER}"
+  fi
+  launch_sdl "${id}"
+}
+
+usage() {
+  cat <<'EOF'
+Usage: omarchy-beforelight <command>
+
+  list              JSON catalog of installed savers
+  get               Current selection
+  set <id> [args]   Select a saver (or "omarchy" for stock TTE)
+  preview [id]      Fullscreen preview of a saver (default: current)
+  stop              Stop preview/run
+  run               Run the selected saver in the foreground
+  schema [id]       Settings schema JSON
+  set-setting <id> <key> <value>
+  hide-bar          Hide the Omarchy bar (used by idle)
+  restore-bar       Show the bar again if we hid it
+EOF
+}
+
+main() {
+  case "${1:-}" in
+    list) cmd_list ;;
+    get) cmd_get ;;
+    set) shift; cmd_set "${1:-}" "${2:-}" ;;
+    preview) shift; cmd_preview "${1:-}" ;;
+    stop) cmd_stop ;;
+    run) cmd_run ;;
+    schema) shift; "${SETTINGS_BIN}" schema "${1:-}" ;;
+    set-setting) shift; "${SETTINGS_BIN}" set "${1:-}" "${2:-}" "${3:-}" ;;
+    hide-bar) hide_bar ;;
+    restore-bar) restore_bar ;;
+    -h|--help|help|"") usage ;;
+    *) usage; exit 2 ;;
+  esac
+}
+
+main "$@"

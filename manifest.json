@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "io.github.flynnsbit.beforelight",
+  "name": "Before Light",
+  "version": "1.0.0",
+  "author": "flynnsbit",
+  "license": "MIT",
+  "description": "Classic-style Omarchy screensavers with a bar picker, preview, and per-saver settings.",
+  "homepage": "https://github.com/flynnsbit/beforelight",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Before Light",
+    "description": "Select, preview, and configure Before Light screensavers",
+    "category": "Desktop",
+    "aliases": [
+      "screensaver",
+      "before-light",
+      "beforelight"
+    ],
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}

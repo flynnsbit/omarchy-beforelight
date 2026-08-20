@@ -1,0 +1,228 @@
+#!/usr/bin/python3
+"""Per-screensaver settings for Before Light."""
+from __future__ import annotations
+
+import json
+import os
+import sys
+from pathlib import Path
+
+CONFIG_PATH = Path.home() / ".config/omarchy/beforelight.json"
+
+SCHEMA = {
+    "toastersaver": [
+        {"key": "t", "flag": "-t", "label": "Toasters", "type": "int", "min": 1, "max": 80, "default": 30},
+        {"key": "m", "flag": "-m", "label": "Toast pieces", "type": "int", "min": 0, "max": 40, "default": 10},
+        {"key": "s", "flag": "-s", "label": "Speed", "type": "float", "min": 0.1, "max": 5.0, "step": 0.1, "default": 1.0},
+    ],
+    "fishsaver": [
+        {"key": "t", "flag": "-t", "label": "Fish", "type": "int", "min": 1, "max": 60, "default": 33},
+        {"key": "m", "flag": "-m", "label": "Bubbles", "type": "int", "min": 0, "max": 40, "default": 12},
+        {"key": "s", "flag": "-s", "label": "Speed", "type": "float", "min": 0.1, "max": 5.0, "step": 0.1, "default": 1.0},
+    ],
+    "globe": [
+        {"key": "s", "flag": "-s", "label": "Speed", "type": "float", "min": 0.1, "max": 5.0, "step": 0.1, "default": 1.0},
+    ],
+    "spotlight": [
+        {"key": "s", "flag": "-s", "label": "Speed", "type": "float", "min": 0.1, "max": 5.0, "step": 0.1, "default": 1.0},
+    ],
+    "starrynight": [
+        {"key": "s", "flag": "-s", "label": "Speed", "type": "float", "min": 0.1, "max": 5.0, "step": 0.1, "default": 1.0},
+        {"key": "d", "flag": "-d", "label": "Star density", "type": "float", "min": 0.0, "max": 1.0, "step": 0.05, "default": 0.5},
+        {"key": "m", "flag": "-m", "label": "Meteor frequency", "type": "float", "min": 0.0, "max": 5.0, "step": 0.1, "default": 1.0},
+    ],
+    "matrix": [
+        {"key": "s", "flag": "-s", "label": "Speed", "type": "float", "min": 0.1, "max": 5.0, "step": 0.1, "default": 1.0},
+    ],
+    "warp": [
+        {"key": "s", "flag": "-s", "label": "Speed", "type": "float", "min": 0.1, "max": 5.0, "step": 0.1, "default": 1.0},
+    ],
+    "worms": [
+        {"key": "n", "flag": "-n", "label": "Worms", "type": "int", "min": 1, "max": 50, "default": 5},
+        {"key": "l", "flag": "-l", "label": "Trail length", "type": "int", "min": 5, "max": 200, "default": 100},
+        {"key": "s", "flag": "-s", "label": "Speed", "type": "float", "min": 0.1, "max": 5.0, "step": 0.1, "default": 1.0},
+        {"key": "w", "flag": "-w", "label": "Wiggle", "type": "float", "min": 0.0, "max": 1.0, "step": 0.01, "default": 0.02},
+        {"key": "a", "flag": "-a", "label": "Audio", "type": "bool", "default": False},
+    ],
+    "bouncingball": [
+        {"key": "s", "flag": "-s", "label": "Speed", "type": "float", "min": 0.1, "max": 5.0, "step": 0.1, "default": 1.0},
+    ],
+    "fadeout": [
+        {"key": "s", "flag": "-s", "label": "Speed", "type": "float", "min": 0.1, "max": 5.0, "step": 0.1, "default": 1.0},
+    ],
+    "hardrain": [
+        {"key": "t", "flag": "-t", "label": "Drops", "type": "int", "min": 10, "max": 400, "default": 120},
+        {"key": "s", "flag": "-s", "label": "Speed", "type": "float", "min": 0.1, "max": 5.0, "step": 0.1, "default": 1.0},
+    ],
+    "rainstorm": [
+        {"key": "s", "flag": "-s", "label": "Speed", "type": "float", "min": 0.1, "max": 5.0, "step": 0.1, "default": 1.0},
+    ],
+    "paperfire": [
+        {"key": "s", "flag": "-s", "label": "Speed", "type": "float", "min": 0.1, "max": 5.0, "step": 0.1, "default": 1.0},
+    ],
+    "lifeforms": [
+        {"key": "s", "flag": "-s", "label": "Speed", "type": "float", "min": 0.1, "max": 5.0, "step": 0.1, "default": 1.0},
+    ],
+    "lifeforms_new": [
+        {"key": "s", "flag": "-s", "label": "Speed", "type": "float", "min": 0.1, "max": 5.0, "step": 0.1, "default": 1.0},
+    ],
+    "logo": [
+        {"key": "s", "flag": "-s", "label": "Speed", "type": "float", "min": 0.1, "max": 5.0, "step": 0.1, "default": 1.0},
+    ],
+    "messages": [
+        {"key": "s", "flag": "-s", "label": "Speed", "type": "float", "min": 0.1, "max": 5.0, "step": 0.1, "default": 1.0},
+        {"key": "t", "flag": "-t", "label": "Message", "type": "string", "default": "OUT TO LUNCH"},
+        {"key": "r", "flag": "-r", "label": "Random quote", "type": "bool", "valueless": True, "default": False},
+    ],
+    "messages2": [
+        {"key": "s", "flag": "-s", "label": "Speed", "type": "float", "min": 0.1, "max": 5.0, "step": 0.1, "default": 1.0},
+        {"key": "t", "flag": "-t", "label": "Message", "type": "string", "default": "OUT TO LUNCH"},
+        {"key": "r", "flag": "-r", "label": "Random quote", "type": "bool", "valueless": True, "default": False},
+    ],
+    "randomizer": [
+        {"key": "d", "flag": "-d", "label": "Seconds per saver", "type": "int", "min": 10, "max": 180, "default": 45},
+        {"key": "r", "flag": "-r", "label": "Show names", "type": "bool", "default": True},
+    ],
+}
+
+
+def load_config() -> dict:
+    data = {
+        "engine": "beforelight",
+        "selected": "toastersaver",
+        "args": "",
+        "previewSeconds": 12,
+        "settings": {},
+    }
+    if CONFIG_PATH.is_file():
+        try:
+            loaded = json.loads(CONFIG_PATH.read_text())
+            if isinstance(loaded, dict):
+                data.update(loaded)
+        except Exception:
+            pass
+    if not isinstance(data.get("settings"), dict):
+        data["settings"] = {}
+    return data
+
+
+def save_config(data: dict) -> None:
+    CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    tmp = CONFIG_PATH.with_suffix(".tmp")
+    tmp.write_text(json.dumps(data, indent=2) + "\n")
+    tmp.replace(CONFIG_PATH)
+    try:
+        os.chmod(CONFIG_PATH, 0o600)
+    except OSError:
+        pass
+
+
+def coerce(field: dict, raw):
+    kind = field["type"]
+    if kind == "int":
+        try:
+            value = int(float(raw))
+        except (TypeError, ValueError):
+            value = int(field["default"])
+        return max(int(field.get("min", value)), min(int(field.get("max", value)), value))
+    if kind == "float":
+        try:
+            value = float(raw)
+        except (TypeError, ValueError):
+            value = float(field["default"])
+        lo, hi = float(field.get("min", value)), float(field.get("max", value))
+        return max(lo, min(hi, value))
+    if kind == "bool":
+        if isinstance(raw, bool):
+            return raw
+        return str(raw).strip().lower() in ("1", "true", "yes", "on")
+    return str(raw if raw is not None else field.get("default", ""))
+
+
+def values_for(data: dict, saver_id: str) -> dict:
+    stored = (data.get("settings") or {}).get(saver_id) or {}
+    out = {}
+    for field in SCHEMA.get(saver_id, []):
+        out[field["key"]] = coerce(field, stored.get(field["key"], field["default"]))
+    return out
+
+
+def args_for(data: dict, saver_id: str) -> list[str]:
+    argv = []
+    values = values_for(data, saver_id)
+    for field in SCHEMA.get(saver_id, []):
+        val = values[field["key"]]
+        if field["type"] == "bool":
+            if field.get("valueless"):
+                if val:
+                    argv.append(field["flag"])
+            else:
+                argv.extend([field["flag"], "1" if val else "0"])
+        elif field["type"] == "string":
+            if str(val).strip() != "":
+                argv.extend([field["flag"], str(val)])
+        else:
+            argv.extend([field["flag"], str(val)])
+    return argv
+
+
+def dump_schema(saver_id: str | None = None) -> dict:
+    if saver_id:
+        return {
+            "id": saver_id,
+            "fields": SCHEMA.get(saver_id, []),
+            "values": values_for(load_config(), saver_id),
+            "previewSeconds": int(load_config().get("previewSeconds") or 12),
+        }
+    cfg = load_config()
+    return {
+        "previewSeconds": int(cfg.get("previewSeconds") or 12),
+        "selected": cfg.get("selected"),
+        "savers": {
+            sid: {"fields": fields, "values": values_for(cfg, sid)}
+            for sid, fields in SCHEMA.items()
+        },
+    }
+
+
+def main() -> int:
+    cmd = sys.argv[1] if len(sys.argv) > 1 else "schema"
+    if cmd == "schema":
+        saver = sys.argv[2] if len(sys.argv) > 2 else None
+        print(json.dumps(dump_schema(saver)))
+        return 0
+    if cmd == "args":
+        saver = sys.argv[2] if len(sys.argv) > 2 else load_config().get("selected")
+        print(" ".join(args_for(load_config(), saver or "")))
+        return 0
+    if cmd == "args-json":
+        saver = sys.argv[2] if len(sys.argv) > 2 else load_config().get("selected")
+        print(json.dumps(args_for(load_config(), saver or "")))
+        return 0
+    if cmd == "set" and len(sys.argv) >= 5:
+        saver, key, value = sys.argv[2], sys.argv[3], sys.argv[4]
+        cfg = load_config()
+        if saver == "_global" and key == "previewSeconds":
+            try:
+                cfg["previewSeconds"] = max(3, min(30, int(float(value))))
+            except ValueError:
+                pass
+            save_config(cfg)
+            print(json.dumps(dump_schema(cfg.get("selected"))))
+            return 0
+        fields = {f["key"]: f for f in SCHEMA.get(saver, [])}
+        if key not in fields:
+            print(json.dumps({"error": f"unknown setting {key} for {saver}"}))
+            return 1
+        settings = cfg.setdefault("settings", {})
+        bucket = settings.setdefault(saver, {})
+        bucket[key] = coerce(fields[key], value)
+        save_config(cfg)
+        print(json.dumps(dump_schema(saver)))
+        return 0
+    print("usage: omarchy-beforelight-settings schema [id] | args [id] | set <id> <key> <value>", file=sys.stderr)
+    return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+# Omarchy 4 drop-in for `omarchy-screensaver`.
+# Stock path runs ttfx in a terminal classed org.omarchy.screensaver.
+# When BeforeLight is selected, this starts the SDL saver instead while
+# keeping those terminal windows so idle/lock still track the cycle.
+set -euo pipefail
+
+OFFICIAL="/usr/share/omarchy/bin/omarchy-screensaver"
+CONFIG="${HOME}/.config/omarchy/beforelight.json"
+RUN_LOCK="${XDG_RUNTIME_DIR:-/tmp}/beforelight.run.lock"
+BIN="${HOME}/.config/omarchy/bin/omarchy-beforelight"
+
+engine="$(python3 - "${CONFIG}" <<'PY'
+import json, os, sys
+path = sys.argv[1]
+engine = "beforelight"
+if os.path.isfile(path):
+    try:
+        engine = json.load(open(path)).get("engine") or engine
+    except Exception:
+        pass
+print(engine)
+PY
+)"
+
+if [[ "${engine}" != "beforelight" ]]; then
+  exec "${OFFICIAL}"
+fi
+
+screensaver_in_focus() {
+  hyprctl activewindow -j | jq -e '
+    .class == "org.omarchy.screensaver"
+    or (.class | test("^(toastersaver|fishsaver|globe|spotlight|starrynight|matrix|warp|worms|bouncingball|fadeout|hardrain|rainstorm|paperfire|lifeforms|lifeforms_new|logo|messages|messages2|randomizer)$"))
+  ' >/dev/null 2>&1
+}
+
+exit_screensaver() {
+  hyprctl eval 'hl.config({ cursor = { invisible = false } })' &>/dev/null \
+    || hyprctl keyword cursor:invisible false &>/dev/null || true
+  "${BIN}" stop >/dev/null 2>&1 || true
+  pkill -f '[o]rg.omarchy.screensaver' 2>/dev/null || true
+  exit 0
+}
+
+trap exit_screensaver SIGINT SIGTERM SIGHUP SIGQUIT
+printf '\033]11;rgb:00/00/00\007'
+hyprctl eval 'hl.config({ cursor = { invisible = true } })' &>/dev/null \
+  || hyprctl keyword cursor:invisible true &>/dev/null || true
+
+if mkdir "${RUN_LOCK}" 2>/dev/null; then
+  "${BIN}" hide-bar >/dev/null 2>&1 || true
+  "${BIN}" run &
+  saver_pid=$!
+  echo "${saver_pid}" > "${XDG_RUNTIME_DIR:-/tmp}/beforelight.pid"
+  while true; do
+    if ! kill -0 "${saver_pid}" 2>/dev/null; then
+      exit_screensaver
+    fi
+    if read -r -n1 -t 1 || ! screensaver_in_focus; then
+      exit_screensaver
+    fi
+  done
+else
+  while [[ -d "${RUN_LOCK}" ]]; do
+    if read -r -n1 -t 1 || ! screensaver_in_focus; then
+      exit_screensaver
+    fi
+  done
+  exit_screensaver
+fi
