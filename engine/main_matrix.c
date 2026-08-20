@@ -1,6 +1,6 @@
-#include <SDL.h>
+#include <SDL2/SDL.h>
 #include "beforelight_input.h"
-#include <SDL_ttf.h>
+#include <SDL2/SDL_ttf.h>
 #include <time.h>
 #include <stdlib.h>
 #include <unistd.h> // for getopt

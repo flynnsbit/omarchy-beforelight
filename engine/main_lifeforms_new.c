@@ -1,4 +1,5 @@
-#include <SDL.h>
+#include <SDL2/SDL.h>
+#include "beforelight_input.h"
 #include <math.h>
 #include <stdlib.h>
 #include <time.h>
@@ -498,11 +499,16 @@ int main(int argc, char *argv[]) {
     // Main loop
     SDL_Event e;
     int quit = 0;
+    Uint32 start_time = SDL_GetTicks();
+    BeforelightInput bl_input = {0};
 
     while (!quit) {
         while (SDL_PollEvent(&e)) {
             if (e.type == SDL_QUIT || e.type == SDL_KEYDOWN || e.type == SDL_MOUSEBUTTONDOWN) {
                 quit = 1;
+            } else if (e.type == SDL_MOUSEMOTION) {
+                if (beforelight_should_quit_motion(&bl_input, start_time, &e))
+                    quit = 1;
             }
         }
 

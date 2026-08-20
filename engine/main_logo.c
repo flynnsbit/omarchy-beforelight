@@ -1,6 +1,6 @@
-#include <SDL.h>
+#include <SDL2/SDL.h>
 #include "beforelight_input.h"
-#include <SDL_image.h>
+#include <SDL2/SDL_image.h>
 #include <math.h>
 #include <stdlib.h>
 #include <time.h>
