@@ -9,8 +9,12 @@ BarWidget {
   moduleName: "beforelight"
 
   // FileView cannot watch a path that does not exist yet, so probe the
-  // stamp and watch its parent directory (same pattern as the bar-off flag).
-  readonly property string stampDir: Quickshell.env("HOME") + "/.config/omarchy"
+  // stamp/binary and watch directories that already exist.
+  readonly property string homeDir: Quickshell.env("HOME")
+  readonly property string stampPath: homeDir + "/.config/omarchy/beforelight.setup"
+  readonly property string stampDir: homeDir + "/.config/omarchy"
+  readonly property string saverDir: homeDir + "/.config/omarchy/branding/screensaver"
+  readonly property string toasterPath: saverDir + "/toastersaver"
   property bool setupReady: false
 
   readonly property var panelItem: panelLoader.item
@@ -40,7 +44,10 @@ BarWidget {
 
   function toggle() {
     if (!root.setupReady) return
-    if (panelItem) panelItem.toggle()
+    if (panelItem) {
+      panelItem.refresh()
+      panelItem.toggle()
+    }
   }
 
   function closeForPopoutSwitch() {
@@ -69,16 +76,21 @@ BarWidget {
   Process {
     id: stampProbe
     running: true
-    command: ["bash", "-c", "test -s \"$HOME/.config/omarchy/beforelight.setup\" && echo ready || echo wait"]
-    stdout: SplitParser {
-      onRead: function(line) {
-        if (String(line).trim() === "ready") root.markReady()
-      }
+    command: ["test", "-s", root.stampPath, "-a", "-x", root.toasterPath]
+    onExited: function(code) {
+      if (code === 0) root.markReady()
     }
   }
 
   FileView {
     path: root.stampDir
+    watchChanges: true
+    printErrors: false
+    onFileChanged: if (!root.setupReady) root.probeStamp()
+  }
+
+  FileView {
+    path: root.saverDir
     watchChanges: true
     printErrors: false
     onFileChanged: if (!root.setupReady) root.probeStamp()

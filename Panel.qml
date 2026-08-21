@@ -23,7 +23,10 @@ Panel {
     if (url.indexOf("file://") === 0) url = url.substring(7)
     return url.replace(/\/+$/, "")
   }
+  readonly property string homeDir: Quickshell.env("HOME")
   readonly property string cli: pluginDir + "/bin/omarchy-beforelight"
+  readonly property string saverDir: homeDir + "/.config/omarchy/branding/screensaver"
+  readonly property string configPath: homeDir + "/.config/omarchy/beforelight.json"
 
   property var items: []
   property string selectedId: "omarchy"
@@ -86,29 +89,39 @@ Panel {
     return false
   }
 
-  function refresh() {
-    if (listProcess.running) return
-    loading = true
-    loadError = ""
-    listProcess.running = true
-  }
+  property bool scanQueued: false
 
-  function applyList(raw) {
-    var parsed = Model.parseList(raw)
-    loading = false
-    if (!parsed.ok) {
-      loadError = parsed.error
+  function refresh() {
+    if (scanProc.running) {
+      scanQueued = true
+      scanProc.running = false
       return
     }
-    selectedId = parsed.selected
-    engine = parsed.engine
-    var idx = Model.indexOf(parsed.items, selectedId)
+    loading = true
+    loadError = ""
+    scanQueued = false
+    scanProc.command = ["ls", "-1", root.saverDir]
+    scanProc.running = true
+  }
+
+  function applyScan(raw) {
+    var installed = Model.parseScan(raw)
+    var next = Model.buildItems(installed, selectedId, engine)
+    loading = false
+    var idx = Model.indexOf(next, selectedId)
     cursorIndex = idx >= 0 ? idx : 0
-    if (idsMatch(parsed.items))
+    if (idsMatch(next))
       return
     pendingListY = saverList.visible ? saverList.contentY : -1
-    items = parsed.items
+    items = next
     Qt.callLater(root.restoreListY)
+  }
+
+  function applyConfig(raw) {
+    var cfg = Model.parseConfig(raw)
+    selectedId = cfg.selected
+    engine = cfg.engine
+    previewSeconds = cfg.previewSeconds
   }
 
   function ensureRowVisible(index) {
@@ -228,24 +241,38 @@ Panel {
   }
 
   FileView {
-    path: Quickshell.env("HOME") + "/.config/omarchy/branding/screensaver"
+    id: configFile
+    path: root.configPath
+    watchChanges: true
+    printErrors: false
+    onLoaded: root.applyConfig(text())
+    onFileChanged: reload()
+  }
+
+  FileView {
+    path: root.saverDir
     watchChanges: true
     printErrors: false
     onFileChanged: root.refresh()
   }
 
   Process {
-    id: listProcess
+    id: scanProc
     running: false
-    command: [root.cli, "list"]
     stdout: StdioCollector {
+      id: scanOut
       waitForEnd: true
-      onStreamFinished: root.applyList(text)
     }
     onExited: function(code) {
-      if (code !== 0 && root.items.length === 0)
-        root.loadError = "Could not list BeforeLight screensavers."
+      if (root.scanQueued) {
+        root.scanQueued = false
+        Qt.callLater(root.refresh)
+        return
+      }
+      root.applyScan(scanOut.text)
       root.loading = false
+      if (code !== 0 && root.items.length <= 1)
+        root.loadError = "Could not list Before Light screensavers."
     }
   }
 
@@ -421,7 +448,9 @@ Panel {
         Text {
           width: parent.width
           visible: (root.loading || root.items.length <= 1) && !root.settingsOpen
-          text: root.loading ? "Loading…" : (root.items.length <= 1 ? "Waiting for compiled savers…" : "")
+          text: root.loading
+            ? "Loading…"
+            : (root.items.length <= 1 ? "Waiting for compiled savers…" : "")
           color: root.dim
           font.family: root.fontFamily
           font.pixelSize: Style.font.bodySmall
