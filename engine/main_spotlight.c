@@ -2,9 +2,12 @@
 #include "beforelight_input.h"
 #include <SDL2/SDL_image.h>
 #include <math.h>
+#include <stdio.h>
 #include <time.h>
-#include <unistd.h> // for getopt
+#include <unistd.h>
 #include <stdlib.h>
+#include <sys/stat.h>
+#include <errno.h>
 #include "assets/omarchy_logo.h"
 
 #define PI 3.141592653589793f
@@ -43,8 +46,7 @@ int main(int argc, char *argv[]) {
 
     srand(time(NULL));
 
-    // Set render quality to nearest for pixel-perfect scaling
-    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
+    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
 
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
         SDL_Log("SDL_Init Error: %s", SDL_GetError());
@@ -59,16 +61,38 @@ int main(int argc, char *argv[]) {
 
 
 
-    // Try taking screenshot using grim (Wayland screenshot tool)
     SDL_Surface *screenshot_surf = NULL;
-    SDL_Log("Attempting screen capture...");
-    int grim_result = system("grim spotlight_temp.png > /dev/null 2>&1");
-    if (grim_result == 0) {
-        SDL_Log("Screen capture succeeded");
-        screenshot_surf = IMG_Load("spotlight_temp.png");
-        unlink("spotlight_temp.png");
-    } else {
-        SDL_Log("Screen capture failed (exit code %d)", grim_result);
+    {
+        char dir[512], path[576], cmd[768];
+        const char *home = getenv("HOME");
+        const char *cache = getenv("XDG_CACHE_HOME");
+        if (cache && cache[0])
+            snprintf(dir, sizeof(dir), "%s/beforelight", cache);
+        else
+            snprintf(dir, sizeof(dir), "%s/.cache/beforelight", home ? home : ".");
+        if (mkdir(dir, 0700) < 0 && errno != EEXIST)
+            SDL_Log("Cannot create cache dir %s", dir);
+        snprintf(path, sizeof(path), "%s/spotlight-%ld.png", dir, (long)getpid());
+        /* grim default scale is the highest output scale = native pixels. */
+        snprintf(cmd, sizeof(cmd),
+                 "grim -o \"$(hyprctl -j monitors | python3 -c "
+                 "'import json,sys; ms=json.load(sys.stdin); "
+                 "print(next((m[\"name\"] for m in ms if m.get(\"focused\")), ms[0][\"name\"]))'"
+                 ")\" '%s' >/dev/null 2>&1",
+                 path);
+        int grim_result = system(cmd);
+        if (grim_result != 0) {
+            snprintf(cmd, sizeof(cmd), "grim '%s' >/dev/null 2>&1", path);
+            grim_result = system(cmd);
+        }
+        if (grim_result == 0) {
+            screenshot_surf = IMG_Load(path);
+            if (screenshot_surf)
+                SDL_Log("Native capture %dx%d", screenshot_surf->w, screenshot_surf->h);
+        } else {
+            SDL_Log("Screen capture failed (exit code %d)", grim_result);
+        }
+        unlink(path);
     }
 
     if (!screenshot_surf) {
@@ -132,22 +156,15 @@ int main(int argc, char *argv[]) {
     }
 
     int W, H;
-    if (do_fullscreen) {
-        int display = SDL_GetWindowDisplayIndex(window);
-        SDL_Rect bounds;
-        SDL_GetDisplayBounds(display, &bounds);
-        W = bounds.w;
-        H = bounds.h;
-        SDL_Log("Fullscreen display size: W=%d H=%d", W, H);
-        // Set logical renderer size to match display
-        SDL_RenderSetLogicalSize(renderer, W, H);
-    } else {
-        SDL_GetRendererOutputSize(renderer, &W, &H);
-        SDL_Log("Renderer size: W=%d H=%d", W, H);
-    }
+    SDL_GetRendererOutputSize(renderer, &W, &H);
+    SDL_Log("Renderer output: W=%d H=%d", W, H);
 
     // Create texture from screenshot
     SDL_Texture *bg_tex = SDL_CreateTextureFromSurface(renderer, screenshot_surf);
+#if SDL_VERSION_ATLEAST(2, 0, 12)
+    if (bg_tex)
+        SDL_SetTextureScaleMode(bg_tex, SDL_ScaleModeLinear);
+#endif
     if (!bg_tex) {
         SDL_Log("Cannot create texture from screenshot: %s", SDL_GetError());
         SDL_FreeSurface(screenshot_surf);
