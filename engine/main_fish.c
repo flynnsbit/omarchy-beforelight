@@ -225,7 +225,7 @@ int main(int argc, char *argv[]) {
     float entity_delay[entity_count];
     float random_row_pct[entity_count];
     for (size_t j = 0; j < entity_count; j++) {
-        entity_speed_mult[j] = 0.8f + (rand() % 10) * 0.1f;
+        entity_speed_mult[j] = 1.15f + (rand() % 4) * 0.05f;
         // Reduce initial delay for fish for quicker appearance
         if (entities[j].is_toaster == 0) {
             entity_delay[j] = (rand() % 500) * 0.001f; // 0.0s - 0.5s
@@ -424,7 +424,7 @@ int main(int argc, char *argv[]) {
 
             float current_top_pct = random_row_pct[i];
 
-            float effective_duration = ap.fly_duration * entity_speed_mult[i] * 1.2f / speed_mult;
+            float effective_duration = ap.fly_duration * entity_speed_mult[i] * 2.15f / speed_mult;
             if (effective_duration < 0.2f) effective_duration = 0.2f;
             float cycle_time = fmodf(local_time, effective_duration);
             float fly_f = cycle_time / effective_duration;
@@ -453,8 +453,8 @@ int main(int argc, char *argv[]) {
             SDL_Rect dstrect = {(int)current_x, (int)current_y, fish_size, fish_size};
 
             // Fish sprite animation (2 frames)
-            float flap_period = 0.6f / speed_mult;
-            if (flap_period < 0.08f) flap_period = 0.08f;
+            float flap_period = 0.85f / speed_mult;
+            if (flap_period < 0.12f) flap_period = 0.12f;
             float flap_cycle = fmodf(local_time, flap_period);
             int flap_frame = (int)(flap_cycle / 0.3f) % 2;
             SDL_Rect srcrect = {flap_frame * SPRITE_SIZE, 0, SPRITE_SIZE, SPRITE_SIZE};
