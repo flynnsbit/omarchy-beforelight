@@ -119,22 +119,14 @@ int main(int argc, char *argv[]) {
     }
 
     int W, H;
-    if (do_fullscreen) {
-        int display = SDL_GetWindowDisplayIndex(window);
-        SDL_Rect bounds;
-        SDL_GetDisplayBounds(display, &bounds);
-        W = bounds.w;
-        H = bounds.h;
-        SDL_Log("Fullscreen display size: W=%d H=%d", W, H);
-        // Set logical renderer size to match display
-        SDL_RenderSetLogicalSize(renderer, W, H);
-    } else {
-        SDL_GetRendererOutputSize(renderer, &W, &H);
-        SDL_Log("Renderer size: W=%d H=%d", W, H);
-    }
+    SDL_GetRendererOutputSize(renderer, &W, &H);
+    SDL_Log("Renderer output: W=%d H=%d", W, H);
 
-    // Create texture from screenshot
     SDL_Texture *bg_tex = SDL_CreateTextureFromSurface(renderer, screenshot_surf);
+#if SDL_VERSION_ATLEAST(2, 0, 12)
+    if (bg_tex)
+        SDL_SetTextureScaleMode(bg_tex, SDL_ScaleModeLinear);
+#endif
     if (!bg_tex) {
         SDL_Log("Cannot create texture from screenshot: %s", SDL_GetError());
         SDL_DestroyRenderer(renderer);

@@ -197,22 +197,16 @@ int main(int argc, char *argv[]) {
     }
 
     int W, H;
-    if (do_fullscreen) {
-        int display = SDL_GetWindowDisplayIndex(window);
-        SDL_GetDisplayBounds(display, &bounds);
-        W = bounds.w;
-        H = bounds.h;
-        SDL_RenderSetLogicalSize(renderer, W, H);
-    } else {
-        SDL_GetRendererOutputSize(renderer, &W, &H);
-    }
-    SDL_Log("Renderer size: W=%d H=%d", W, H);
+    SDL_GetRendererOutputSize(renderer, &W, &H);
+    SDL_Log("Renderer output: W=%d H=%d", W, H);
 
-    // Create background texture
     SDL_Texture *bg_tex = NULL;
     if (screenshot_surf) {
         bg_tex = SDL_CreateTextureFromSurface(renderer, screenshot_surf);
-        // Keep screenshot_surf for color sampling
+#if SDL_VERSION_ATLEAST(2, 0, 12)
+        if (bg_tex)
+            SDL_SetTextureScaleMode(bg_tex, SDL_ScaleModeLinear);
+#endif
         if (!bg_tex) {
             SDL_Log("Cannot create texture from screenshot: %s", SDL_GetError());
             SDL_FreeSurface(screenshot_surf);
