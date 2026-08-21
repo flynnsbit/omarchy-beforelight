@@ -45,7 +45,7 @@ int main(int argc, char *argv[]) {
                 break;
             case 'r':
                 rot_mult = atof(optarg);
-                if (rot_mult <= 0.1f) rot_mult = 0.1f;
+                if (rot_mult <= 0.08f) rot_mult = 0.08f;
                 if (rot_mult > 10.0f) rot_mult = 10.0f;
                 break;
             case 'f':
