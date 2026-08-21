@@ -140,8 +140,6 @@ int main(int argc, char *argv[]) {
     float animation_time = 0;
     const float paper_appear_time = 2.0f;     // Paper fades in
 
-    // Hide cursor during screensaver
-    system("hyprctl eval 'hl.config({ cursor = { invisible = true } })' >/dev/null 2>&1 || hyprctl keyword cursor:invisible true >/dev/null 2>&1");
 
     // Main loop
     SDL_Event e;
@@ -372,8 +370,6 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    // Cleanup - restore cursor visibility
-    system("hyprctl eval 'hl.config({ cursor = { invisible = false } })' >/dev/null 2>&1 || hyprctl keyword cursor:invisible false >/dev/null 2>&1");
 
     // Cleanup
     SDL_DestroyTexture(paper_tex);

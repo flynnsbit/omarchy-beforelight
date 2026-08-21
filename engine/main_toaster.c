@@ -397,8 +397,6 @@ int main(int argc, char *argv[]) {
         SDL_Delay(16); // ~60fps
     }
 
-    // Cleanup - restore cursor visibility
-    system("hyprctl eval 'hl.config({ cursor = { invisible = false } })' >/dev/null 2>&1 || hyprctl keyword cursor:invisible false >/dev/null 2>&1");
 
     // Cleanup
     SDL_DestroyTexture(toaster_tex);

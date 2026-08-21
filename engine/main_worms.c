@@ -288,8 +288,6 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    // Hide cursor
-    system("hyprctl eval 'hl.config({ cursor = { invisible = true } })' >/dev/null 2>&1 || hyprctl keyword cursor:invisible true >/dev/null 2>&1");
 
     // Main loop
     SDL_Event e;
@@ -496,8 +494,6 @@ int main(int argc, char *argv[]) {
     system("(hyprctl dispatch fullscreen > /dev/null 2>&1)");
     SDL_Delay(200); // Allow Hyprland to process fullscreen exit
 
-    // Restore cursor
-    system("hyprctl eval 'hl.config({ cursor = { invisible = false } })' >/dev/null 2>&1 || hyprctl keyword cursor:invisible false >/dev/null 2>&1");
 
     // Cleanup
     for (int i = 0; i < worm_count; i++) {

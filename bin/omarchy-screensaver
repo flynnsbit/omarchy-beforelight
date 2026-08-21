@@ -45,8 +45,6 @@ screensaver_in_focus() {
 }
 
 exit_screensaver() {
-  hyprctl eval 'hl.config({ cursor = { invisible = false } })' &>/dev/null \
-    || hyprctl keyword cursor:invisible false &>/dev/null || true
   "${BIN}" stop >/dev/null 2>&1 || true
   pkill -f '[o]rg.omarchy.screensaver' 2>/dev/null || true
   exit 0
@@ -54,8 +52,6 @@ exit_screensaver() {
 
 trap exit_screensaver SIGINT SIGTERM SIGHUP SIGQUIT
 printf '\033]11;rgb:00/00/00\007'
-hyprctl eval 'hl.config({ cursor = { invisible = true } })' &>/dev/null \
-  || hyprctl keyword cursor:invisible true &>/dev/null || true
 
 if mkdir "${RUN_LOCK}" 2>/dev/null; then
   "${BIN}" run &

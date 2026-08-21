@@ -165,8 +165,6 @@ int main(int argc, char *argv[]) {
         streams[i].brightness[0] = 255;
     }
 
-    // Hide cursor during screensaver
-    system("hyprctl eval 'hl.config({ cursor = { invisible = true } })' >/dev/null 2>&1 || hyprctl keyword cursor:invisible true >/dev/null 2>&1");
 
     // Main loop
     SDL_Event e;
@@ -286,8 +284,6 @@ int main(int argc, char *argv[]) {
         SDL_Delay(16); // ~60fps
     }
 
-    // Cleanup - restore cursor visibility
-    system("hyprctl eval 'hl.config({ cursor = { invisible = false } })' >/dev/null 2>&1 || hyprctl keyword cursor:invisible false >/dev/null 2>&1");
 
     // Cleanup
     TTF_CloseFont(font);

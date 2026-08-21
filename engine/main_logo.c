@@ -111,8 +111,6 @@ int main(int argc, char *argv[]) {
     // Normalize loop time (50 second cycle as per CSS)
     const float cycle_time = 50.0f;
 
-    // Hide cursor during screensaver
-    system("hyprctl eval 'hl.config({ cursor = { invisible = true } })' >/dev/null 2>&1 || hyprctl keyword cursor:invisible true >/dev/null 2>&1");
 
     // Main loop
     SDL_Event e;
@@ -178,8 +176,6 @@ int main(int argc, char *argv[]) {
         SDL_Delay(16); // ~60fps
     }
 
-    // Cleanup - restore cursor visibility
-    system("hyprctl eval 'hl.config({ cursor = { invisible = false } })' >/dev/null 2>&1 || hyprctl keyword cursor:invisible false >/dev/null 2>&1");
 
     // Cleanup
     SDL_DestroyTexture(logo_tex);
