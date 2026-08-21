@@ -29,9 +29,11 @@ rm -f \
   "${HOME_DIR}/.config/omarchy/beforelight.json" \
   "${HOME_DIR}/.config/omarchy/beforelight.setup"
 
+RUNTIME_DIR="${XDG_RUNTIME_DIR:-${HOME_DIR}/.cache/beforelight/run}"
 rm -rf "${CACHE}" \
-  "${XDG_RUNTIME_DIR:-/tmp}/beforelight.run.lock" \
-  "${XDG_RUNTIME_DIR:-/tmp}/beforelight.preview.lock"
+  "${RUNTIME_DIR}/beforelight.run.lock" \
+  "${RUNTIME_DIR}/beforelight.preview.lock"
+rm -f "${RUNTIME_DIR}/beforelight.pid"
 
 if [[ -d "${SAVER_DST}" ]]; then
   for name in bouncingball fadeout fishsaver globe hardrain lifeforms lifeforms_new \

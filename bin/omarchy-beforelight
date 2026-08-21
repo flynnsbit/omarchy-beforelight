@@ -5,10 +5,15 @@ set -euo pipefail
 HOME_DIR="${HOME}"
 SAVER_DIR="${HOME_DIR}/.config/omarchy/branding/screensaver"
 CONFIG_PATH="${HOME_DIR}/.config/omarchy/beforelight.json"
-RUN_LOCK="${XDG_RUNTIME_DIR:-/tmp}/beforelight.run.lock"
-PREVIEW_LOCK="${XDG_RUNTIME_DIR:-/tmp}/beforelight.preview.lock"
-PID_FILE="${XDG_RUNTIME_DIR:-/tmp}/beforelight.pid"
-HID_BAR_FLAG="${XDG_RUNTIME_DIR:-/tmp}/beforelight.hid-bar"
+if [[ -n "${XDG_RUNTIME_DIR:-}" && -d "${XDG_RUNTIME_DIR}" ]]; then
+  RUNTIME_DIR="${XDG_RUNTIME_DIR}"
+else
+  RUNTIME_DIR="${HOME_DIR}/.cache/beforelight/run"
+  mkdir -p -m 700 "${RUNTIME_DIR}"
+fi
+RUN_LOCK="${RUNTIME_DIR}/beforelight.run.lock"
+PREVIEW_LOCK="${RUNTIME_DIR}/beforelight.preview.lock"
+PID_FILE="${RUNTIME_DIR}/beforelight.pid"
 OFFICIAL_SCREENSAVER="/usr/share/omarchy/bin/omarchy-screensaver"
 SAVER_CLASS_RE='^(toastersaver|fishsaver|globe|spotlight|starrynight|matrix|warp|worms|bouncingball|fadeout|hardrain|rainstorm|paperfire|lifeforms|lifeforms_new|logo|messages|messages2|randomizer|org\\.omarchy\\.screensaver)$'
 

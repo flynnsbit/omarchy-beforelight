@@ -17,7 +17,6 @@ static void usage(const char *prog) {
     fprintf(stderr, "  -s F    Speed multiplier (default: 1.0)\n");
     fprintf(stderr, "  -f 0|1  Fullscreen (1=yes, 0=windowed) (default: 1)\n");
     fprintf(stderr, "  -t STR  Message text (default: 'OUT TO LUNCH')\n");
-    fprintf(stderr, "  -r      Random quote from internet (requires curl)\n");
     fprintf(stderr, "  -h      Show this help\n");
 }
 
@@ -26,7 +25,6 @@ int main(int argc, char *argv[]) {
     float speed_mult = 1.0f;
     int do_fullscreen = 1;
     char message_text[1024] = "OUT TO LUNCH";
-    int random_mode = 0;
     const char *message = message_text;
 
     while ((opt = getopt(argc, argv, "s:f:t:rh")) != -1) {
@@ -43,7 +41,6 @@ int main(int argc, char *argv[]) {
                 snprintf(message_text, sizeof(message_text), "%s", optarg);
                 break;
             case 'r':
-                random_mode = 1;
                 break;
             case 'h':
             default:
@@ -54,27 +51,6 @@ int main(int argc, char *argv[]) {
 
     // Removed setenv for style testing
     srand(time(NULL));
-
-    if (random_mode) {
-        FILE *fp = popen("curl -s http://api.quotable.io/random | sed 's/.*\"content\":\"//' | sed 's/\",\"author.*//'", "r");
-        if (fp) {
-            if (fgets(message_text, sizeof(message_text), fp)) {
-                char *newline = strchr(message_text, '\n');
-                if (newline) *newline = '\0';
-                if (strlen(message_text) > 0) {
-                    message = message_text;
-                }
-            }
-            int status = pclose(fp);
-            if (status != 0) {
-                // Command failed, keep default
-                message = message_text;
-            }
-        } else {
-            // popen failed, keep default
-            message = message_text;
-        }
-    }
 
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
         SDL_Log("SDL_Init Error: %s", SDL_GetError());
@@ -199,21 +175,6 @@ int main(int argc, char *argv[]) {
 
         Uint32 current_time = SDL_GetTicks();
         float time_s = (current_time - start_time) / 1000.0f;
-
-        // Update quote every 10 seconds (after each marquee cycle) if random mode
-        if (random_mode && fmodf(time_s, 10.0f) < 0.016f) {
-            FILE *fp = popen("curl -s http://api.quotable.io/random | sed 's/.*\"content\":\"//' | sed 's/\",\"author.*//'", "r");
-            if (fp) {
-                if (fgets(message_text, sizeof(message_text), fp)) {
-                    char *newline = strchr(message_text, '\n');
-                    if (newline) *newline = '\0';
-                    if (strlen(message_text) > 0 && strcmp(message_text, "OUT TO LUNCH") != 0) {
-                        update_text_texture(message_text);
-                    }
-                }
-                pclose(fp);
-            }
-        }
 
         // Update bouncing physics
         const float dt = 0.016f;

@@ -7,7 +7,14 @@ set -euo pipefail
 
 OFFICIAL="/usr/share/omarchy/bin/omarchy-screensaver"
 CONFIG="${HOME}/.config/omarchy/beforelight.json"
-RUN_LOCK="${XDG_RUNTIME_DIR:-/tmp}/beforelight.run.lock"
+if [[ -n "${XDG_RUNTIME_DIR:-}" && -d "${XDG_RUNTIME_DIR}" ]]; then
+  RUNTIME_DIR="${XDG_RUNTIME_DIR}"
+else
+  RUNTIME_DIR="${HOME}/.cache/beforelight/run"
+  mkdir -p -m 700 "${RUNTIME_DIR}"
+fi
+RUN_LOCK="${RUNTIME_DIR}/beforelight.run.lock"
+PID_FILE="${RUNTIME_DIR}/beforelight.pid"
 BIN="${HOME}/.config/omarchy/bin/omarchy-beforelight"
 
 engine="$(python3 - "${CONFIG}" <<'PY'
@@ -53,7 +60,7 @@ hyprctl eval 'hl.config({ cursor = { invisible = true } })' &>/dev/null \
 if mkdir "${RUN_LOCK}" 2>/dev/null; then
   "${BIN}" run &
   saver_pid=$!
-  echo "${saver_pid}" > "${XDG_RUNTIME_DIR:-/tmp}/beforelight.pid"
+  echo "${saver_pid}" > "${PID_FILE}"
   while true; do
     if ! kill -0 "${saver_pid}" 2>/dev/null; then
       exit_screensaver

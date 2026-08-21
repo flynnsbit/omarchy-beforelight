@@ -72,12 +72,10 @@ SCHEMA = {
     "messages": [
         {"key": "s", "flag": "-s", "label": "Speed", "type": "float", "min": 0.1, "max": 5.0, "step": 0.1, "default": 1.0},
         {"key": "t", "flag": "-t", "label": "Message", "type": "string", "default": "OUT TO LUNCH"},
-        {"key": "r", "flag": "-r", "label": "Random quote", "type": "bool", "valueless": True, "default": False},
     ],
     "messages2": [
         {"key": "s", "flag": "-s", "label": "Speed", "type": "float", "min": 0.1, "max": 5.0, "step": 0.1, "default": 1.0},
         {"key": "t", "flag": "-t", "label": "Message", "type": "string", "default": "OUT TO LUNCH"},
-        {"key": "r", "flag": "-r", "label": "Random quote", "type": "bool", "valueless": True, "default": False},
     ],
     "randomizer": [
         {"key": "d", "flag": "-d", "label": "Seconds per saver", "type": "int", "min": 10, "max": 180, "default": 45},
