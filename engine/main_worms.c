@@ -196,9 +196,16 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    int W, H;
-    SDL_GetRendererOutputSize(renderer, &W, &H);
-    SDL_Log("Renderer output: W=%d H=%d", W, H);
+    int out_w, out_h;
+    SDL_GetRendererOutputSize(renderer, &out_w, &out_h);
+    int W = out_w, H = out_h;
+    if (screenshot_surf) {
+        W = screenshot_surf->w;
+        H = screenshot_surf->h;
+    }
+    SDL_Log("Renderer output: %dx%d capture: %dx%d", out_w, out_h, W, H);
+    float unit = (W > 0) ? (W / 1500.0f) : 1.0f;
+    if (unit < 0.5f) unit = 1.0f;
 
     SDL_Texture *bg_tex = NULL;
     if (screenshot_surf) {
@@ -216,6 +223,10 @@ int main(int argc, char *argv[]) {
 
     // Create trails texture (mask: opaque black, worms make transparent)
     SDL_Texture *trails_tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, W, H);
+#if SDL_VERSION_ATLEAST(2, 0, 12)
+    if (trails_tex)
+        SDL_SetTextureScaleMode(trails_tex, SDL_ScaleModeLinear);
+#endif
     if (!trails_tex) {
         SDL_Log("Cannot create trails texture: %s", SDL_GetError());
         if (bg_tex) SDL_DestroyTexture(bg_tex);
@@ -248,7 +259,7 @@ int main(int argc, char *argv[]) {
         worms[i].x = W / 2.0f;
         worms[i].y = H / 2.0f;
         float dir = (rand() % 360) * PI / 180.0f;
-    float speed = 240.0f; // doubled base speed for more lively motion
+    float speed = 240.0f * unit;
     worms[i].vx = cosf(dir) * speed;
     worms[i].vy = sinf(dir) * speed;
         worms[i].color.r = rand() % 256;
@@ -346,7 +357,7 @@ int main(int argc, char *argv[]) {
             for (int j = i + 1; j < worm_count; j++) {
                 Worm *w1 = &worms[i];
                 Worm *w2 = &worms[j];
-                float radius = 10.0f;
+                float radius = 10.0f * unit;
                 // Head-head collision
                 float dx = w2->x - w1->x;
                 float dy = w2->y - w1->y;
@@ -429,7 +440,8 @@ int main(int argc, char *argv[]) {
             Worm *w = &worms[i];
             for (int j = 0; j < w->length - 1; j++) {
                 // Thickness tapering: head thick, tail thin
-                int thickness = (2 + 6 * (w->length - 1 - j) / (w->length - 1)) * 2; // doubled trail thickness
+                int thickness = (int)((2 + 6 * (w->length - 1 - j) / (w->length - 1)) * 2 * unit);
+                if (thickness < 2) thickness = 2;
                 for (int t = -thickness / 2; t <= thickness / 2; t++) {
                     SDL_RenderDrawLine(renderer, w->segments[j].x + t, w->segments[j].y,
                                       w->segments[j+1].x + t, w->segments[j+1].y);
@@ -441,31 +453,32 @@ int main(int argc, char *argv[]) {
         // Render
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         SDL_RenderClear(renderer);
+        SDL_Rect dest = {0, 0, out_w, out_h};
+        float sx = (W > 0) ? (float)out_w / (float)W : 1.0f;
+        float sy = (H > 0) ? (float)out_h / (float)H : 1.0f;
         if (bg_tex) {
-            SDL_RenderCopy(renderer, bg_tex, NULL, NULL);
+            SDL_RenderCopy(renderer, bg_tex, NULL, &dest);
             SDL_SetTextureBlendMode(trails_tex, SDL_BLENDMODE_BLEND);
-            SDL_RenderCopy(renderer, trails_tex, NULL, NULL);
-        } else {
-            // No screenshot, just black
+            SDL_RenderCopy(renderer, trails_tex, NULL, &dest);
         }
-        // Render worms on top
         float rainbow_time = (now - start_time) / 1000.0f;
         for (int i = 0; i < worm_count; i++) {
             Worm *w = &worms[i];
             int head_w=0, head_h=0;
             if (head_tex) SDL_QueryTexture(head_tex, NULL, NULL, &head_w, &head_h);
             for (int j = 0; j < w->length; j++) {
-                SDL_Texture *tex;
                 SDL_Rect dst;
                 double angle = (j == 0) ? atan2(w->vy, w->vx) * 180.0 / PI : 0.0;
+                int px = (int)(w->segments[j].x * sx);
+                int py = (int)(w->segments[j].y * sy);
                 if (j == 0) {
                     if (!head_tex) continue;
-                    dst = (SDL_Rect){w->segments[j].x - head_w/2, w->segments[j].y - head_h/2, head_w, head_h};
+                    dst = (SDL_Rect){px - head_w/2, py - head_h/2, head_w, head_h};
                     SDL_RenderCopyEx(renderer, head_tex, NULL, &dst, angle, NULL, SDL_FLIP_NONE);
                 } else {
                     if (!body_tex_base) continue;
                     int bw=0,bh=0; SDL_QueryTexture(body_tex_base, NULL, NULL, &bw, &bh);
-                    dst = (SDL_Rect){w->segments[j].x - bw/2, w->segments[j].y - bh/2, bw, bh};
+                    dst = (SDL_Rect){px - bw/2, py - bh/2, bw, bh};
                     // Compute hue shifting along worm length and time
                     float hue = fmodf((rainbow_time * 60.0f) + (j * 6.0f) + i * 15.0f, 360.0f);
                     SDL_Color col = hsv_to_rgb(hue, 1.0f, 1.0f);
