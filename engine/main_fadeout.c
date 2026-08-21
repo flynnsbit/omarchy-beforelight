@@ -105,6 +105,7 @@ int main(int argc, char *argv[]) {
         SDL_Quit();
         return 1;
     }
+    beforelight_grab_cursor();
 
     if (do_fullscreen) {
         // Make window fullscreen in Hyprland to hide the bar

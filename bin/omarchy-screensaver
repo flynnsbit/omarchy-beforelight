@@ -46,7 +46,7 @@ screensaver_in_focus() {
 
 exit_screensaver() {
   "${BIN}" stop >/dev/null 2>&1 || true
-  pkill -f '[o]rg.omarchy.screensaver' 2>/dev/null || true
+  hyprctl eval 'hl.config({ cursor = { invisible = false } })' >/dev/null 2>&1 || true
   exit 0
 }
 

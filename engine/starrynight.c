@@ -798,6 +798,7 @@ int main(int argc, char *argv[]) {
         SDL_Quit();
         return 1;
     }
+    beforelight_grab_cursor();
     g_r = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     if (!g_r)
         g_r = SDL_CreateRenderer(window, -1, 0);
@@ -808,7 +809,6 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     SDL_SetRenderDrawBlendMode(g_r, SDL_BLENDMODE_BLEND);
-    SDL_ShowCursor(0);
 
     int screen_width = 800, screen_height = 600;
     SDL_GetRendererOutputSize(g_r, &screen_width, &screen_height);

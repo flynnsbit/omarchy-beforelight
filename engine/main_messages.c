@@ -78,6 +78,7 @@ int main(int argc, char *argv[]) {
         SDL_Quit();
         return 1;
     }
+    beforelight_grab_cursor();
 
     SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     if (renderer == NULL) {

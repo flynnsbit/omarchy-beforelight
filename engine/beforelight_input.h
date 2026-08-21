@@ -1,7 +1,9 @@
 #pragma once
 
 #include <SDL2/SDL.h>
+#include <signal.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 typedef struct {
     int armed;
@@ -33,4 +35,35 @@ static inline int beforelight_should_quit_motion(BeforelightInput *state, Uint32
     int dx = event->motion.x - state->origin_x;
     int dy = event->motion.y - state->origin_y;
     return (dx * dx + dy * dy) >= (threshold * threshold);
+}
+
+/* Same hide/restore for every saver. Hyprland cursor:invisible is required on
+ * the overlay path (SDL_ShowCursor is not enough). Restore on atexit and
+ * SIGTERM so a stopped preview cannot leave the pointer gone. */
+static int beforelight_cursor_held;
+
+static inline void beforelight_release_cursor(void) {
+    if (!beforelight_cursor_held)
+        return;
+    beforelight_cursor_held = 0;
+    SDL_ShowCursor(SDL_ENABLE);
+    system("hyprctl eval 'hl.config({ cursor = { invisible = false } })' >/dev/null 2>&1");
+}
+
+static inline void beforelight_cursor_signal(int sig) {
+    (void)sig;
+    beforelight_release_cursor();
+    _exit(0);
+}
+
+static inline void beforelight_grab_cursor(void) {
+    if (beforelight_cursor_held)
+        return;
+    beforelight_cursor_held = 1;
+    SDL_ShowCursor(SDL_DISABLE);
+    system("hyprctl eval 'hl.config({ cursor = { invisible = true } })' >/dev/null 2>&1");
+    atexit(beforelight_release_cursor);
+    signal(SIGTERM, beforelight_cursor_signal);
+    signal(SIGINT, beforelight_cursor_signal);
+    signal(SIGHUP, beforelight_cursor_signal);
 }

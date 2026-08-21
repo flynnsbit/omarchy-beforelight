@@ -131,10 +131,11 @@ kill_savers() {
     fi
     rm -f "${PID_FILE}"
   fi
-  sleep 0.05
+  sleep 0.15
   for name in ${names}; do
     pkill -9 -x "${name}" 2>/dev/null || true
   done
+  hyprctl eval 'hl.config({ cursor = { invisible = false } })' >/dev/null 2>&1 || true
   restore_bar
 }
 
