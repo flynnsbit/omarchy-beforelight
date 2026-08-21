@@ -66,7 +66,7 @@ Panel {
   }
 
   function open() {
-    if (items.length === 0) root.refresh()
+    root.refresh()
     root.controller.show()
     Qt.callLater(function() { root.ensureRowVisible(root.cursorIndex) })
   }
@@ -109,6 +109,10 @@ Panel {
     pendingListY = saverList.visible ? saverList.contentY : -1
     items = parsed.items
     Qt.callLater(root.restoreListY)
+    if (items.length <= 1 && catalogTries < 40)
+      catalogRetry.start()
+    else
+      catalogRetry.stop()
   }
 
   function ensureRowVisible(index) {
@@ -135,6 +139,7 @@ Panel {
 
   property bool previewAfterSelect: false
   property real pendingListY: -1
+  property int catalogTries: 0
 
   function idsMatch(next) {
     if (!items || !next || items.length !== next.length) return false
@@ -225,6 +230,20 @@ Panel {
       "set-setting", "_global", "previewSeconds", String(seconds)
     ]
     setSettingProcess.running = true
+  }
+
+  Timer {
+    id: catalogRetry
+    interval: 1500
+    repeat: true
+    onTriggered: {
+      catalogTries += 1
+      if (root.items.length > 1 || catalogTries > 40) {
+        stop()
+        return
+      }
+      root.refresh()
+    }
   }
 
   Process {
