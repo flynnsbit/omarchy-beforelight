@@ -228,7 +228,7 @@ int main(int argc, char *argv[]) {
     for (size_t j = 0; j < entity_count; j++) {
         entity_speed_mult[j] = 1.25f + (rand() % 5) * 0.06f;
         entity_delay[j] = 0.0f;
-        entity_phase[j] = 0.08f + (rand() % 85) * 0.01f;
+        entity_phase[j] = 0.5f;
         if (entities[j].is_toaster == 0) {
             random_row_pct[j] = 5.0f + (rand() % 81);
         }
@@ -272,9 +272,20 @@ int main(int argc, char *argv[]) {
     int W, H;
     SDL_GetRendererOutputSize(renderer, &W, &H);
 
-    // Calculate margin for off-screen start/end
+    // Start/end just off-screen (1.0 was a full extra screen, so a slow
+    // crossing left the tank empty for a long time at launch).
     int fish_size = SPRITE_SIZE / 2;
-    float margin_pct = 1.0f + 2.0f * fish_size / (float)W;
+    float margin_pct = (float)fish_size / (float)W + 0.04f;
+    if (margin_pct < 0.06f) margin_pct = 0.06f;
+    {
+        float span = 1.0f + 2.0f * margin_pct;
+        float vis0 = margin_pct / span;
+        float vis1 = (1.0f + margin_pct) / span;
+        for (size_t j = 0; j < entity_count; j++) {
+            if (entities[j].is_toaster != 0) continue;
+            entity_phase[j] = vis0 + (float)(rand() % 91) / 100.0f * (vis1 - vis0);
+        }
+    }
 
     // Load textures
     SDL_Texture *fish_texs[11], *bg_tex;
