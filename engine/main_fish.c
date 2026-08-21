@@ -223,22 +223,15 @@ int main(int argc, char *argv[]) {
     size_t entity_count = sizeof(entities) / sizeof(entities[0]);
     float entity_speed_mult[entity_count];
     float entity_delay[entity_count];
+    float entity_phase[entity_count];
     float random_row_pct[entity_count];
     for (size_t j = 0; j < entity_count; j++) {
         entity_speed_mult[j] = 1.25f + (rand() % 5) * 0.06f;
-        // Reduce initial delay for fish for quicker appearance
-        if (entities[j].is_toaster == 0) {
-            entity_delay[j] = (rand() % 500) * 0.001f; // 0.0s - 0.5s
-        } else {
-            entity_delay[j] = (rand() % 1000) * 0.01f; // keep bubbles slower
-        }
+        entity_delay[j] = 0.0f;
+        entity_phase[j] = 0.08f + (rand() % 85) * 0.01f;
         if (entities[j].is_toaster == 0) {
             random_row_pct[j] = 5.0f + (rand() % 81);
         }
-    }
-    // Force very first fish to appear immediately
-    for (size_t j = 0; j < entity_count; j++) {
-        if (entities[j].is_toaster == 0) { entity_delay[j] = 0.0f; break; }
     }
 
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
@@ -426,7 +419,8 @@ int main(int argc, char *argv[]) {
 
             float effective_duration = ap.fly_duration * entity_speed_mult[i] * 3.4f / speed_mult;
             if (effective_duration < 0.2f) effective_duration = 0.2f;
-            float cycle_time = fmodf(local_time, effective_duration);
+            float cycle_time = fmodf(local_time + entity_phase[i] * effective_duration, effective_duration);
+            if (cycle_time < 0) cycle_time += effective_duration;
             float fly_f = cycle_time / effective_duration;
 
             // Calculate fish size (fixed 50% smaller)
