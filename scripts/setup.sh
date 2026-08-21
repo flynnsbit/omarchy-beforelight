@@ -87,6 +87,8 @@ if [[ "${SKIP_BUILD}" -eq 0 ]]; then
     make -C "${ROOT}/engine" -j"$(nproc)" BUILD="${CACHE}/engine" all
     install_savers "${CACHE}/engine"
     if [[ -n "${VERSION}" ]]; then
+      # The bar widget loads the picker only after this stamp exists, so
+      # write it after the binaries are in branding/screensaver.
       printf '%s\n' "${VERSION}" > "${STAMP}"
     fi
     notify "Before Light is ready" "Click the bar icon to pick a screensaver."

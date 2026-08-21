@@ -109,10 +109,6 @@ Panel {
     pendingListY = saverList.visible ? saverList.contentY : -1
     items = parsed.items
     Qt.callLater(root.restoreListY)
-    if (items.length <= 1 && catalogTries < 40)
-      catalogRetry.start()
-    else
-      catalogRetry.stop()
   }
 
   function ensureRowVisible(index) {
@@ -139,7 +135,6 @@ Panel {
 
   property bool previewAfterSelect: false
   property real pendingListY: -1
-  property int catalogTries: 0
 
   function idsMatch(next) {
     if (!items || !next || items.length !== next.length) return false
@@ -232,18 +227,11 @@ Panel {
     setSettingProcess.running = true
   }
 
-  Timer {
-    id: catalogRetry
-    interval: 1500
-    repeat: true
-    onTriggered: {
-      catalogTries += 1
-      if (root.items.length > 1 || catalogTries > 40) {
-        stop()
-        return
-      }
-      root.refresh()
-    }
+  FileView {
+    path: Quickshell.env("HOME") + "/.config/omarchy/branding/screensaver"
+    watchChanges: true
+    printErrors: false
+    onFileChanged: root.refresh()
   }
 
   Process {
@@ -432,8 +420,8 @@ Panel {
 
         Text {
           width: parent.width
-          visible: root.loading && !root.settingsOpen
-          text: "Loading…"
+          visible: (root.loading || root.items.length <= 1) && !root.settingsOpen
+          text: root.loading ? "Loading…" : (root.items.length <= 1 ? "Waiting for compiled savers…" : "")
           color: root.dim
           font.family: root.fontFamily
           font.pixelSize: Style.font.bodySmall

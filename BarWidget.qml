@@ -1,4 +1,6 @@
 import QtQuick
+import Quickshell
+import Quickshell.Io
 import qs.Commons
 import qs.Ui
 
@@ -6,13 +8,29 @@ BarWidget {
   id: root
   moduleName: "beforelight"
 
+  // FileView cannot watch a path that does not exist yet, so probe the
+  // stamp and watch its parent directory (same pattern as the bar-off flag).
+  readonly property string stampDir: Quickshell.env("HOME") + "/.config/omarchy"
+  property bool setupReady: false
+
   readonly property var panelItem: panelLoader.item
   readonly property bool opened: panelItem ? panelItem.opened === true : false
   readonly property bool popoutSwitchClosing: panelItem
     ? panelItem.popoutSwitchClosing === true
     : false
 
+  function probeStamp() {
+    if (stampProbe.running) return
+    stampProbe.running = true
+  }
+
+  function markReady() {
+    if (root.setupReady) return
+    root.setupReady = true
+  }
+
   function open() {
+    if (!root.setupReady) return
     if (panelItem) panelItem.open()
   }
 
@@ -21,6 +39,7 @@ BarWidget {
   }
 
   function toggle() {
+    if (!root.setupReady) return
     if (panelItem) panelItem.toggle()
   }
 
@@ -47,9 +66,42 @@ BarWidget {
   onBarChanged: injectPanel()
   onSettingsChanged: injectPanel()
 
+  Process {
+    id: stampProbe
+    running: true
+    command: ["bash", "-c", "test -s \"$HOME/.config/omarchy/beforelight.setup\" && echo ready || echo wait"]
+    stdout: SplitParser {
+      onRead: function(line) {
+        if (String(line).trim() === "ready") root.markReady()
+      }
+    }
+  }
+
+  FileView {
+    path: root.stampDir
+    watchChanges: true
+    printErrors: false
+    onFileChanged: if (!root.setupReady) root.probeStamp()
+  }
+
+  Timer {
+    running: !root.setupReady
+    interval: 1500
+    repeat: true
+    onTriggered: root.probeStamp()
+  }
+
+  // Do not leave the bar stuck on "compiling" if gcc/make never finish.
+  Timer {
+    running: !root.setupReady
+    interval: 300000
+    repeat: false
+    onTriggered: root.markReady()
+  }
+
   Loader {
     id: panelLoader
-    active: true
+    active: root.setupReady
     source: Qt.resolvedUrl("Panel.qml")
     visible: false
     onLoaded: {
@@ -62,11 +114,16 @@ BarWidget {
     id: button
     anchors.fill: parent
     bar: root.bar
-    text: root.panelItem ? root.panelItem.barLabel() : "🅰️"
-    tooltipText: root.panelItem ? root.panelItem.tooltipText() : "Before Light screensaver"
+    text: root.setupReady
+      ? (root.panelItem ? root.panelItem.barLabel() : "🅰️")
+      : "✨"
+    tooltipText: root.setupReady
+      ? (root.panelItem ? root.panelItem.tooltipText() : "Before Light screensaver")
+      : "Compiling screensavers…"
     horizontalMargin: 8.5
 
     onPressed: function(buttonCode) {
+      if (!root.setupReady) return
       if (buttonCode === Qt.RightButton) {
         if (root.panelItem) root.panelItem.previewCurrent()
       } else if (buttonCode === Qt.MiddleButton) {

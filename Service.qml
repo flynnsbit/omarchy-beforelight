@@ -14,6 +14,8 @@ Item {
 
   // setup.sh must not write into pluginDir; Omarchy reloads the plugin on
   // any file change there, which would restart this Process in a loop.
+  // The bar widget loads Panel.qml only after setup writes
+  // ~/.config/omarchy/beforelight.setup (binaries already installed).
   Process {
     id: setupProcess
     running: true
