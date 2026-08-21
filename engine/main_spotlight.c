@@ -1,13 +1,12 @@
 #include <SDL2/SDL.h>
 #include "beforelight_input.h"
+#include "beforelight_capture.h"
 #include <SDL2/SDL_image.h>
 #include <math.h>
 #include <stdio.h>
 #include <time.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include <sys/stat.h>
-#include <errno.h>
 #include "assets/omarchy_logo.h"
 
 #define PI 3.141592653589793f
@@ -61,39 +60,9 @@ int main(int argc, char *argv[]) {
 
 
 
-    SDL_Surface *screenshot_surf = NULL;
-    {
-        char dir[512], path[576], cmd[768];
-        const char *home = getenv("HOME");
-        const char *cache = getenv("XDG_CACHE_HOME");
-        if (cache && cache[0])
-            snprintf(dir, sizeof(dir), "%s/beforelight", cache);
-        else
-            snprintf(dir, sizeof(dir), "%s/.cache/beforelight", home ? home : ".");
-        if (mkdir(dir, 0700) < 0 && errno != EEXIST)
-            SDL_Log("Cannot create cache dir %s", dir);
-        snprintf(path, sizeof(path), "%s/spotlight-%ld.png", dir, (long)getpid());
-        /* grim default scale is the highest output scale = native pixels. */
-        snprintf(cmd, sizeof(cmd),
-                 "grim -o \"$(hyprctl -j monitors | python3 -c "
-                 "'import json,sys; ms=json.load(sys.stdin); "
-                 "print(next((m[\"name\"] for m in ms if m.get(\"focused\")), ms[0][\"name\"]))'"
-                 ")\" '%s' >/dev/null 2>&1",
-                 path);
-        int grim_result = system(cmd);
-        if (grim_result != 0) {
-            snprintf(cmd, sizeof(cmd), "grim '%s' >/dev/null 2>&1", path);
-            grim_result = system(cmd);
-        }
-        if (grim_result == 0) {
-            screenshot_surf = IMG_Load(path);
-            if (screenshot_surf)
-                SDL_Log("Native capture %dx%d", screenshot_surf->w, screenshot_surf->h);
-        } else {
-            SDL_Log("Screen capture failed (exit code %d)", grim_result);
-        }
-        unlink(path);
-    }
+    SDL_Surface *screenshot_surf = beforelight_capture_screen();
+    if (screenshot_surf)
+        SDL_Log("Native capture %dx%d", screenshot_surf->w, screenshot_surf->h);
 
     if (!screenshot_surf) {
         SDL_Log("Cannot capture screen, using embedded Omarchy logo as fallback");

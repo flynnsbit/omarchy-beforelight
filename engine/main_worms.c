@@ -1,5 +1,6 @@
 #include <SDL2/SDL.h>
 #include "beforelight_input.h"
+#include "beforelight_capture.h"
 #include <SDL2/SDL_image.h>
 #include <SDL2/SDL_ttf.h>
 #include <SDL2/SDL_mixer.h>
@@ -149,17 +150,11 @@ int main(int argc, char *argv[]) {
         chomp = NULL;
     }
 
-    // Screenshot capture (from main_spotlight.c)
-    SDL_Surface *screenshot_surf = NULL;
-    SDL_Log("Attempting screen capture...");
-    int grim_result = system("grim worms_temp.png > /dev/null 2>&1");
-    if (grim_result == 0) {
-        SDL_Log("Screen capture succeeded");
-        screenshot_surf = IMG_Load("worms_temp.png");
-        unlink("worms_temp.png");
-    } else {
-        SDL_Log("Screen capture failed (exit code %d), using black background", grim_result);
-    }
+    SDL_Surface *screenshot_surf = beforelight_capture_screen();
+    if (screenshot_surf)
+        SDL_Log("Native capture %dx%d", screenshot_surf->w, screenshot_surf->h);
+    else
+        SDL_Log("Screen capture failed, using black background");
 
     Uint32 flags = SDL_WINDOW_SHOWN;
     int win_w = 800;

@@ -1,5 +1,6 @@
 #include <SDL2/SDL.h>
 #include "beforelight_input.h"
+#include "beforelight_capture.h"
 #include <SDL2/SDL_image.h>
 #include <math.h>
 #include <time.h>
@@ -51,17 +52,9 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    // Try taking screenshot using grim (Wayland screenshot tool)
-    SDL_Surface *screenshot_surf = NULL;
-    SDL_Log("Attempting screen capture...");
-    int grim_result = system("grim fadeout_temp.png > /dev/null 2>&1");
-    if (grim_result == 0) {
-        SDL_Log("Screen capture succeeded");
-        screenshot_surf = IMG_Load("fadeout_temp.png");
-        unlink("fadeout_temp.png");
-    } else {
-        SDL_Log("Screen capture failed (exit code %d)", grim_result);
-    }
+    SDL_Surface *screenshot_surf = beforelight_capture_screen();
+    if (screenshot_surf)
+        SDL_Log("Native capture %dx%d", screenshot_surf->w, screenshot_surf->h);
 
     if (!screenshot_surf) {
         SDL_Log("Cannot capture screen, using embedded Omarchy logo as fallback");
