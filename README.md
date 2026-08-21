@@ -27,8 +27,8 @@ omarchy plugin add https://github.com/flynnsbit/omarchy-beforelight.git --enable
 ```
 
 First enable compiles savers from source. The bar shows ✨ until that
-finishes, then the picker loads with the full list. Clicking the icon
-rescans compiled savers. If enable did not place the icon:
+finishes, then the picker shows the full catalog. If enable did not
+place the icon:
 
 ```bash
 omarchy bar add beforelight --section right

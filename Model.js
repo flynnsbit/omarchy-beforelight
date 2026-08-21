@@ -1,3 +1,5 @@
+.pragma library
+
 function catalog() {
   return [
     { id: "omarchy", name: "Omarchy TTE", emoji: "🅰️", blurb: "Stock Omarchy terminal effects", hasSettings: false },
@@ -37,30 +39,21 @@ function parseConfig(raw) {
   }
 }
 
-function parseScan(raw) {
-  var installed = {}
-  var lines = String(raw || "").split(/\r?\n/)
-  for (var i = 0; i < lines.length; i++) {
-    var name = String(lines[i] || "").trim()
-    if (name) installed[name] = true
-  }
-  return installed
-}
-
-function buildItems(installed, selectedId, engine) {
+// The picker catalog is fixed. Do not derive it from `ls` / CLI stdout:
+// Quickshell often misses output from processes that exit immediately, which
+// left the list stuck on Omarchy TTE after a successful compile.
+function visibleItems() {
   var cat = catalog()
   var items = []
-  var onId = (engine === "omarchy") ? "omarchy" : String(selectedId || "omarchy")
   for (var i = 0; i < cat.length; i++) {
     var item = cat[i]
-    if (item.id !== "omarchy" && !installed[item.id]) continue
     items.push({
       id: item.id,
       name: item.name,
       emoji: item.emoji,
       blurb: item.blurb,
       installed: true,
-      selected: item.id === onId,
+      selected: false,
       hasSettings: item.hasSettings === true
     })
   }

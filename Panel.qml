@@ -25,10 +25,9 @@ Panel {
   }
   readonly property string homeDir: Quickshell.env("HOME")
   readonly property string cli: pluginDir + "/bin/omarchy-beforelight"
-  readonly property string saverDir: homeDir + "/.config/omarchy/branding/screensaver"
   readonly property string configPath: homeDir + "/.config/omarchy/beforelight.json"
 
-  property var items: []
+  property var items: Model.visibleItems()
   property string selectedId: "omarchy"
   property string engine: "omarchy"
   property string loadError: ""
@@ -69,7 +68,9 @@ Panel {
   }
 
   function open() {
-    root.refresh()
+    configFile.reload()
+    if (!items || items.length < 2)
+      items = Model.visibleItems()
     root.controller.show()
     Qt.callLater(function() { root.ensureRowVisible(root.cursorIndex) })
   }
@@ -89,32 +90,9 @@ Panel {
     return false
   }
 
-  property bool scanQueued: false
-
   function refresh() {
-    if (scanProc.running) {
-      scanQueued = true
-      scanProc.running = false
-      return
-    }
-    loading = true
-    loadError = ""
-    scanQueued = false
-    scanProc.command = ["ls", "-1", root.saverDir]
-    scanProc.running = true
-  }
-
-  function applyScan(raw) {
-    var installed = Model.parseScan(raw)
-    var next = Model.buildItems(installed, selectedId, engine)
-    loading = false
-    var idx = Model.indexOf(next, selectedId)
-    cursorIndex = idx >= 0 ? idx : 0
-    if (idsMatch(next))
-      return
-    pendingListY = saverList.visible ? saverList.contentY : -1
-    items = next
-    Qt.callLater(root.restoreListY)
+    items = Model.visibleItems()
+    configFile.reload()
   }
 
   function applyConfig(raw) {
@@ -148,13 +126,6 @@ Panel {
 
   property bool previewAfterSelect: false
   property real pendingListY: -1
-
-  function idsMatch(next) {
-    if (!items || !next || items.length !== next.length) return false
-    for (var i = 0; i < items.length; i++)
-      if (items[i].id !== next[i].id) return false
-    return true
-  }
 
   function restoreListY() {
     if (pendingListY < 0 || !saverList.visible || saverList.contentHeight <= 0) return
@@ -249,33 +220,6 @@ Panel {
     onFileChanged: reload()
   }
 
-  FileView {
-    path: root.saverDir
-    watchChanges: true
-    printErrors: false
-    onFileChanged: root.refresh()
-  }
-
-  Process {
-    id: scanProc
-    running: false
-    stdout: StdioCollector {
-      id: scanOut
-      waitForEnd: true
-    }
-    onExited: function(code) {
-      if (root.scanQueued) {
-        root.scanQueued = false
-        Qt.callLater(root.refresh)
-        return
-      }
-      root.applyScan(scanOut.text)
-      root.loading = false
-      if (code !== 0 && root.items.length <= 1)
-        root.loadError = "Could not list Before Light screensavers."
-    }
-  }
-
   Process {
     id: setProcess
     running: false
@@ -316,7 +260,10 @@ Panel {
     }
   }
 
-  Component.onCompleted: root.refresh()
+  Component.onCompleted: {
+    items = Model.visibleItems()
+    configFile.reload()
+  }
 
   KeyboardPanel {
     id: panel
@@ -447,10 +394,8 @@ Panel {
 
         Text {
           width: parent.width
-          visible: (root.loading || root.items.length <= 1) && !root.settingsOpen
-          text: root.loading
-            ? "Loading…"
-            : (root.items.length <= 1 ? "Waiting for compiled savers…" : "")
+          visible: root.loading && !root.settingsOpen
+          text: "Loading…"
           color: root.dim
           font.family: root.fontFamily
           font.pixelSize: Style.font.bodySmall
@@ -498,10 +443,10 @@ Panel {
               spacing: 0
 
               Repeater {
-                model: root.items
+                model: root.items.length
                 delegate: Item {
-            required property var modelData
             required property int index
+            readonly property var modelData: root.items[index]
             width: listColumn.width
             height: Style.space(36)
 

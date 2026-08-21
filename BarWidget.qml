@@ -44,10 +44,7 @@ BarWidget {
 
   function toggle() {
     if (!root.setupReady) return
-    if (panelItem) {
-      panelItem.refresh()
-      panelItem.toggle()
-    }
+    if (panelItem) panelItem.toggle()
   }
 
   function closeForPopoutSwitch() {
