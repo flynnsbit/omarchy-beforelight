@@ -118,9 +118,10 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    int W, H;
-    SDL_GetRendererOutputSize(renderer, &W, &H);
-    SDL_Log("Renderer output: W=%d H=%d", W, H);
+    int out_w, out_h;
+    SDL_GetRendererOutputSize(renderer, &out_w, &out_h);
+    SDL_Log("Renderer output: %dx%d capture: %dx%d",
+            out_w, out_h, screenshot_surf->w, screenshot_surf->h);
 
     SDL_Texture *bg_tex = SDL_CreateTextureFromSurface(renderer, screenshot_surf);
 #if SDL_VERSION_ATLEAST(2, 0, 12)
@@ -179,14 +180,13 @@ int main(int argc, char *argv[]) {
         SDL_RenderClear(renderer);
 
         // Draw background texture first
-        if (bg_tex) {
-            SDL_RenderCopy(renderer, bg_tex, NULL, NULL);
-        }
+        SDL_Rect dest = {0, 0, out_w, out_h};
+        if (bg_tex)
+            SDL_RenderCopy(renderer, bg_tex, NULL, &dest);
 
-        // Draw full-screen black overlay with alpha blending (like spotlight)
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, (Uint8)fade_amount);
         SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-        SDL_RenderFillRect(renderer, NULL);
+        SDL_RenderFillRect(renderer, &dest);
 
         SDL_RenderPresent(renderer);
         SDL_Delay(16); // ~60fps

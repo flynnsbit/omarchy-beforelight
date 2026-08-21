@@ -124,9 +124,8 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    int W, H;
-    SDL_GetRendererOutputSize(renderer, &W, &H);
-    SDL_Log("Renderer output: W=%d H=%d", W, H);
+    int out_w, out_h;
+    SDL_GetRendererOutputSize(renderer, &out_w, &out_h);
 
     // Create texture from screenshot
     SDL_Texture *bg_tex = SDL_CreateTextureFromSurface(renderer, screenshot_surf);
@@ -145,9 +144,6 @@ int main(int argc, char *argv[]) {
     }
     SDL_FreeSurface(screenshot_surf);
 
-    // Spotlight properties
-    float radius = 200.0f;
-
     // Geometry setup for circular spotlight
     const int segments = 64; // more segments for smoother circle
     SDL_Vertex vertices[segments + 1];
@@ -162,15 +158,18 @@ int main(int argc, char *argv[]) {
         indices[i * 3 + 2] = b + 1;
     }
 
-    // Get texture dimensions
-    int tex_width, tex_height;
-    SDL_QueryTexture(bg_tex, NULL, NULL, &tex_width, &tex_height);
-    SDL_Log("Texture size: width=%d height=%d", tex_width, tex_height);
-    float scale_factor = 1.0f; // stretch to fill for both modes
-    float spotlight_x = W / 2.0f;
-    float spotlight_y = H / 2.0f;
-    float spotlight_vx = (rand() % 400 - 200) * 1.0f;
-    float spotlight_vy = (rand() % 400 - 200) * 1.0f;
+    int cap_w, cap_h;
+    SDL_QueryTexture(bg_tex, NULL, NULL, &cap_w, &cap_h);
+    if (cap_w < 1) cap_w = out_w;
+    if (cap_h < 1) cap_h = out_h;
+    SDL_Log("Renderer output: %dx%d capture: %dx%d", out_w, out_h, cap_w, cap_h);
+    float unit = cap_w / 1500.0f;
+    if (unit < 0.5f) unit = 1.0f;
+    float radius = 200.0f * unit;
+    float spotlight_x = cap_w / 2.0f;
+    float spotlight_y = cap_h / 2.0f;
+    float spotlight_vx = (rand() % 400 - 200) * unit;
+    float spotlight_vy = (rand() % 400 - 200) * unit;
 
     // Main loop
     SDL_Event e;
@@ -198,34 +197,34 @@ int main(int argc, char *argv[]) {
         spotlight_y += spotlight_vy * dt * speed_mult;
 
         // Bounce off walls
-        if (spotlight_x <= radius || spotlight_x >= W - radius) {
+        if (spotlight_x <= radius || spotlight_x >= cap_w - radius) {
             spotlight_vx = -spotlight_vx;
-            spotlight_x = spotlight_x <= radius ? radius : W - radius;
+            spotlight_x = spotlight_x <= radius ? radius : cap_w - radius;
         }
-        if (spotlight_y <= radius || spotlight_y >= H - radius) {
+        if (spotlight_y <= radius || spotlight_y >= cap_h - radius) {
             spotlight_vy = -spotlight_vy;
-            spotlight_y = spotlight_y <= radius ? radius : H - radius;
+            spotlight_y = spotlight_y <= radius ? radius : cap_h - radius;
         }
 
-        // Render
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         SDL_RenderClear(renderer);
 
-        // Update geometry vertices for the circular spotlight
-        vertices[0].position.x = spotlight_x;
-        vertices[0].position.y = spotlight_y;
-        vertices[0].tex_coord.x = (spotlight_x / W) * scale_factor;
-        vertices[0].tex_coord.y = (spotlight_y / H) * scale_factor;
+        float sx = (float)out_w / (float)cap_w;
+        float sy = (float)out_h / (float)cap_h;
+        vertices[0].position.x = spotlight_x * sx;
+        vertices[0].position.y = spotlight_y * sy;
+        vertices[0].tex_coord.x = spotlight_x / (float)cap_w;
+        vertices[0].tex_coord.y = spotlight_y / (float)cap_h;
         vertices[0].color = (SDL_Color){255, 255, 255, 255};
 
         for (int i = 0; i < segments; i++) {
             float angle = 2.0f * PI * i / segments;
             float px = spotlight_x + cosf(angle) * radius;
             float py = spotlight_y + sinf(angle) * radius;
-            vertices[i + 1].position.x = px;
-            vertices[i + 1].position.y = py;
-            vertices[i + 1].tex_coord.x = (px / W) * scale_factor;
-            vertices[i + 1].tex_coord.y = (py / H) * scale_factor;
+            vertices[i + 1].position.x = px * sx;
+            vertices[i + 1].position.y = py * sy;
+            vertices[i + 1].tex_coord.x = px / (float)cap_w;
+            vertices[i + 1].tex_coord.y = py / (float)cap_h;
             vertices[i + 1].color = (SDL_Color){255, 255, 255, 255};
         }
 
