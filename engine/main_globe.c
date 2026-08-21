@@ -20,7 +20,8 @@ extern char *optarg;
 static void usage(const char *prog) {
     fprintf(stderr, "Usage: %s [options]\n", prog);
     fprintf(stderr, "Options:\n");
-    fprintf(stderr, "  -s F    Speed multiplier (default: 1.0)\n");
+    fprintf(stderr, "  -s F    Bounce speed (default: 1.0)\n");
+    fprintf(stderr, "  -r F    Rotation speed (default: 1.0)\n");
     fprintf(stderr, "  -f 0|1  Fullscreen (1=yes, 0=windowed) (default: 1)\n");
     fprintf(stderr, "  -h      Show this help\n");
 }
@@ -32,14 +33,20 @@ SDL_Texture *globe_tex;
 int main(int argc, char *argv[]) {
     int opt;
     float speed_mult = 1.0f;
+    float rot_mult = 1.0f;
     int do_fullscreen = 1;
 
-    while ((opt = getopt(argc, argv, "s:f:h")) != -1) {
+    while ((opt = getopt(argc, argv, "s:r:f:h")) != -1) {
         switch (opt) {
             case 's':
                 speed_mult = atof(optarg);
                 if (speed_mult <= 0.1f) speed_mult = 0.1f;
                 if (speed_mult > 10.0f) speed_mult = 10.0f;
+                break;
+            case 'r':
+                rot_mult = atof(optarg);
+                if (rot_mult <= 0.1f) rot_mult = 0.1f;
+                if (rot_mult > 10.0f) rot_mult = 10.0f;
                 break;
             case 'f':
                 do_fullscreen = atoi(optarg);
@@ -156,7 +163,8 @@ int main(int argc, char *argv[]) {
         else if (y > H - ball_size) { y = H - ball_size; vy = -vy; }
 
         // Globe spin animation using toaster sprite code logic
-        const float total_spin_time = 1.4f; // Match CSS spin duration
+        float total_spin_time = 1.4f / rot_mult;
+        if (total_spin_time < 0.15f) total_spin_time = 0.15f;
         float local_turn = fmod(time_s, total_spin_time);
         float turn_phase = local_turn / total_spin_time;
         int flap_frame = (int)(turn_phase * 21) % 21; // 21 frames
