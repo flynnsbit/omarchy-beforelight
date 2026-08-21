@@ -424,7 +424,8 @@ int main(int argc, char *argv[]) {
 
             float current_top_pct = random_row_pct[i];
 
-            float effective_duration = ap.fly_duration * entity_speed_mult[i] * 1.2f;
+            float effective_duration = ap.fly_duration * entity_speed_mult[i] * 1.2f / speed_mult;
+            if (effective_duration < 0.2f) effective_duration = 0.2f;
             float cycle_time = fmodf(local_time, effective_duration);
             float fly_f = cycle_time / effective_duration;
 
@@ -452,7 +453,9 @@ int main(int argc, char *argv[]) {
             SDL_Rect dstrect = {(int)current_x, (int)current_y, fish_size, fish_size};
 
             // Fish sprite animation (2 frames)
-            float flap_cycle = fmodf(local_time, 0.6f); // 2 frames, 0.3s each
+            float flap_period = 0.6f / speed_mult;
+            if (flap_period < 0.08f) flap_period = 0.08f;
+            float flap_cycle = fmodf(local_time, flap_period);
             int flap_frame = (int)(flap_cycle / 0.3f) % 2;
             SDL_Rect srcrect = {flap_frame * SPRITE_SIZE, 0, SPRITE_SIZE, SPRITE_SIZE};
 
