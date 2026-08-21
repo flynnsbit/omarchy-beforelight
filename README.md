@@ -91,15 +91,12 @@ Build depends on `gcc`, `sdl2-config`, SDL2_image, SDL2_ttf, SDL2_mixer, and
 ## Remove
 
 ```bash
-omarchy plugin remove beforelight --yes
-rm -f ~/.config/omarchy/bin/omarchy-beforelight \
-      ~/.config/omarchy/bin/omarchy-beforelight-settings \
-      ~/.config/omarchy/bin/omarchy-screensaver \
-      ~/.config/omarchy/bin/libbeforelight-overlay.so \
-      ~/.config/environment.d/90-beforelight.conf
+omarchy-beforelight-uninstall
 ```
 
-Optional: remove the Before Light block from `~/.config/hypr/hyprland.lua` and the binaries under `~/.config/omarchy/branding/screensaver`.
+That unloads the plugin and removes the wrapper, overlay shim, compiled savers,
+Hyprland snippet, cache, and config. First enable shows a notification while
+savers compile.
 
 ## License
 

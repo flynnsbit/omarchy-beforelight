@@ -7,6 +7,10 @@ set -euo pipefail
 QUIET=0
 [[ "${1:-}" == "--quiet" ]] && QUIET=1
 log() { (( QUIET )) || echo "$*"; }
+notify() {
+  command -v omarchy-notification-send >/dev/null 2>&1 || return 0
+  omarchy-notification-send --app-name "Before Light" -g ✨ "$@" >/dev/null 2>&1 || true
+}
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 HOME_DIR="${HOME}"
@@ -21,6 +25,7 @@ mkdir -p "${BIN_DST}" "${SAVER_DST}" "${HOME_DIR}/.config/environment.d" "$(dirn
 install -Dm0755 "${ROOT}/bin/omarchy-beforelight" "${BIN_DST}/omarchy-beforelight"
 install -Dm0755 "${ROOT}/bin/omarchy-beforelight-settings" "${BIN_DST}/omarchy-beforelight-settings"
 install -Dm0755 "${ROOT}/bin/omarchy-screensaver" "${BIN_DST}/omarchy-screensaver"
+install -Dm0755 "${ROOT}/scripts/uninstall.sh" "${BIN_DST}/omarchy-beforelight-uninstall"
 
 CACHE="${XDG_CACHE_HOME:-${HOME_DIR}/.cache}/beforelight"
 mkdir -p "${CACHE}"
@@ -76,6 +81,7 @@ if [[ "${SKIP_BUILD}" -eq 0 ]]; then
   if ! can_build_savers || [[ ! -d "${ROOT}/engine" ]]; then
     log "Need gcc, make, and sdl2-config to compile savers from source."
   else
+    notify "Building screensavers" "Compiling from source. This can take a minute."
     install_overlay
     log "Building savers from source…"
     make -C "${ROOT}/engine" -j"$(nproc)" BUILD="${CACHE}/engine" all
@@ -83,6 +89,7 @@ if [[ "${SKIP_BUILD}" -eq 0 ]]; then
     if [[ -n "${VERSION}" ]]; then
       printf '%s\n' "${VERSION}" > "${STAMP}"
     fi
+    notify "Before Light is ready" "Click the bar icon to pick a screensaver."
   fi
 fi
 
