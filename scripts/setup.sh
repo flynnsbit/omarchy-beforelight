@@ -77,6 +77,7 @@ install_savers() {
   done
 }
 
+RESTART_SHELL=0
 if [[ "${SKIP_BUILD}" -eq 0 ]]; then
   if ! can_build_savers || [[ ! -d "${ROOT}/engine" ]]; then
     log "Need gcc, make, and sdl2-config to compile savers from source."
@@ -92,6 +93,7 @@ if [[ "${SKIP_BUILD}" -eq 0 ]]; then
       printf '%s\n' "${VERSION}" > "${STAMP}"
     fi
     notify "Before Light is ready" "Click the bar icon to pick a screensaver."
+    RESTART_SHELL=1
   fi
 fi
 
@@ -143,3 +145,11 @@ PY
 fi
 
 log "Before Light is ready."
+
+# First compile finishes while the shell is still holding the empty picker.
+# Restart after this script exits so the plugin reloads against the stamp
+# and compiled savers. Skip on later launches (SKIP_BUILD) or this loops.
+if [[ "${RESTART_SHELL}" -eq 1 ]]; then
+  bash -c 'sleep 1; exec omarchy restart shell' >/dev/null 2>&1 &
+  disown || true
+fi

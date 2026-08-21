@@ -119,6 +119,20 @@ BarWidget {
     }
   }
 
+  IpcHandler {
+    target: "beforelight"
+
+    function open(): void { root.open() }
+    function close(): void { root.close() }
+    function toggle(): void { root.toggle() }
+    function refresh(): void { root.refresh() }
+    function catalogCount(): string {
+      if (!root.setupReady) return "not-ready"
+      if (!root.panelItem || !root.panelItem.items) return "0"
+      return String(root.panelItem.items.length)
+    }
+  }
+
   WidgetButton {
     id: button
     anchors.fill: parent

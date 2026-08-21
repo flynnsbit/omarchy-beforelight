@@ -26,9 +26,9 @@ Infinisys, or After Dark.
 omarchy plugin add https://github.com/flynnsbit/omarchy-beforelight.git --enable --yes
 ```
 
-First enable compiles savers from source. The bar shows ✨ until that
-finishes, then the picker shows the full catalog. If enable did not
-place the icon:
+First enable compiles savers from source and notifies while gcc runs.
+When that finishes, the shell reloads so the picker has the full catalog.
+If enable did not place the icon:
 
 ```bash
 omarchy bar add beforelight --section right
